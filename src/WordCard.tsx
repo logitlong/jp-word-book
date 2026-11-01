@@ -14,8 +14,8 @@ import {
 } from "./lib/store";
 
 const GRADES: { rating: Grade; label: string; key: string }[] = [
-  { rating: Rating.Again, label: "不认识", key: "1" },
-  { rating: Rating.Good, label: "认识", key: "2" },
+  { rating: Rating.Again, label: "不认识", key: "D" },
+  { rating: Rating.Good, label: "认识", key: "空格" },
 ];
 
 const FRONT_HINT = {
@@ -139,17 +139,22 @@ export function WordCard(props: Props) {
     const onKey = (e: KeyboardEvent) => {
       const tagName = (e.target as HTMLElement).tagName;
       if (tagName === "TEXTAREA" || tagName === "INPUT") return;
+      // A held key must not flip the card and then grade it.
+      if (e.repeat) return;
       const key = e.key.toLowerCase();
       if (key === "escape") props.onClose();
       else if (key === "r") void play();
       else if (key === "s") props.onStar();
       else if (study && key === "f") props.onFamiliar();
       else if (study && key === "z" && props.canUndo) props.onUndo();
-      else if (study && !revealed && (key === " " || key === "enter")) {
+      else if (study && !revealed && (key === " " || key === "enter" || key === "d")) {
         e.preventDefault();
         setRevealed(true);
-      } else if (study && revealed && "12".includes(key)) {
-        props.onGrade(GRADES[Number(key) - 1].rating);
+      } else if (study && revealed && (key === "d" || key === "1")) {
+        props.onGrade(Rating.Again);
+      } else if (study && revealed && (key === " " || key === "enter" || key === "2")) {
+        e.preventDefault();
+        props.onGrade(Rating.Good);
       } else if (!study && key === "arrowleft") props.onPrev();
       else if (!study && key === "arrowright") props.onNext();
     };
@@ -251,7 +256,7 @@ export function WordCard(props: Props) {
 
               <div className="card-detail">
                 {entry ? (
-                  <ol className="senses">
+                  <ol className={`senses${entry.senses.length > 2 ? " many" : ""}`}>
                     {entry.senses.map((sense, i) => (
                       <li key={i}>
                         <p className="sense-zh"><span className="pos">{sense.pos}</span>{sense.zh}</p>
@@ -271,6 +276,9 @@ export function WordCard(props: Props) {
                     <p className="meaning">{note.meaning}</p>
                   </>
                 )}
+              </div>
+
+              <div className="card-extra">
                 <hr />
 
                 <h2>学习进度</h2>
@@ -328,7 +336,7 @@ export function WordCard(props: Props) {
             <div className="grades">
               {GRADES.map((g) => (
                 <button key={g.key} onClick={() => props.onGrade(g.rating)}>
-                  <b>{g.label}</b>
+                  <b>{g.label} <kbd>{g.key}</kbd></b>
                   <small>{formatInterval(intervals[g.rating])}</small>
                 </button>
               ))}

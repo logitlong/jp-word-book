@@ -355,13 +355,38 @@ select { padding-right: 34px !important; background-image: linear-gradient(45deg
   .font-stepper { top: calc(14px + env(safe-area-inset-top)); right: 80px; }
 }
 
-/* Landscape tablets put the word beside its meanings so less scrolling is needed. */
-@media (hover: none) and (pointer: coarse) and (min-width: 900px) and (orientation: landscape) {
-  .card-scroll, .card-bottom { padding-right: 48px; padding-left: 48px; }
-  .card-body { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 56px; align-items: start; }
-  .card-side { position: sticky; top: 0; }
-  .card-detail > :first-child { margin-top: 26px; }
-  .grades { max-width: 720px; margin: 0 auto; }
+@media (hover: hover) and (min-width: 900px) {
+  .overlay.full { padding: 16px; }
+  .word-card { width: min(1280px, 100%); max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); border-width: 4px; border-radius: 28px; }
+}
+
+/* Wide screens show the whole word at once: the word and notes on the left, meanings on the right. */
+@media (hover: hover) and (min-width: 900px), (hover: none) and (pointer: coarse) and (min-width: 900px) and (orientation: landscape) {
+  .card-scroll { padding: 20px 40px 18px; }
+  .card-bottom { padding: 12px 40px; }
+  .card-body { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); grid-template-rows: auto 1fr; grid-template-areas: "side detail" "extra detail"; column-gap: 40px; margin-top: 8px; }
+  .card-side { grid-area: side; }
+  .card-extra { grid-area: extra; }
+  .card-detail { grid-area: detail; padding-left: 40px; border-left: 1px solid var(--edge); }
+  .card-detail > :first-child { margin-top: 12px; }
+  .headword { margin-top: 12px; font-size: 54px; }
+  .card-scroll.front .headword { font-size: 88px; }
+  .reading-row { margin-top: 10px; }
+  .pitch { font-size: 26px; }
+  .accent-mark { font-size: 24px; }
+  .listen-row { gap: 10px; margin-top: 16px; }
+  .listen { min-height: 50px; font-size: 16px; }
+  .play-dot { width: 36px; height: 36px; }
+  .voices button { min-height: 36px; padding: 0 12px; font-size: 14px; }
+  .senses { gap: 18px; }
+  .senses.many { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px 28px; }
+  .card-extra hr { margin: 18px 0 14px; }
+  .word-card h2 { margin-bottom: 8px; font-size: 14px; }
+  .pills { gap: 8px; }
+  .pills button { min-height: 40px; padding: 0 16px; font-size: 14px; }
+  .word-card textarea { min-height: 60px; padding: 10px 14px; resize: none; }
+  .grades { max-width: 760px; margin: 0 auto; }
+  .grades button { flex-direction: row; justify-content: center; gap: 12px; padding: 10px 6px; }
 }
 
 @media (hover: none) {
