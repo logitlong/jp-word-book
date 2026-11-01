@@ -1,3 +1,4 @@
+import type { QuizMode } from "./Quiz";
 import { useMemo, useState } from "react";
 import type { Note } from "./lib/apkg";
 import {
@@ -114,7 +115,7 @@ export function GroupsPage(props: {
   settings: Settings;
   onSettings: (patch: Partial<Settings>) => void;
   onStudy: (title: string, ids: string[]) => void;
-  onQuiz: (group: Group) => void;
+  onQuiz: (group: Group, mode: QuizMode) => void;
   onBrowse: (group: Group) => void;
 }) {
   const { groups, progress, settings } = props;
@@ -195,7 +196,8 @@ export function GroupsPage(props: {
                 <button className="ghost small" disabled={!due.length} onClick={() => props.onStudy(`${group.title}复习`, due.map((n) => n.id))}>
                   复习 {due.length}
                 </button>
-                <button className="ghost small" onClick={() => props.onQuiz(group)}>测验</button>
+                <button className="ghost small" onClick={() => props.onQuiz(group, "exam")}>真题测验</button>
+                <button className="ghost small" onClick={() => props.onQuiz(group, "words")}>单词测验</button>
                 <button className="ghost small" onClick={() => props.onBrowse(group)}>词表</button>
               </div>
             </li>
@@ -497,13 +499,6 @@ export function SettingsPanel(props: {
         <label>自动播放发音
           <input type="checkbox" checked={settings.autoplay}
             onChange={(e) => onChange({ autoplay: e.target.checked })} />
-        </label>
-        <label>外观
-          <select value={settings.theme} onChange={(e) => onChange({ theme: e.target.value as Settings["theme"] })}>
-            <option value="system">跟随系统</option>
-            <option value="light">浅色</option>
-            <option value="dark">深色</option>
-          </select>
         </label>
         <CloudSection cloud={props.cloud} />
         <p className="muted shortcut">快捷键：R 发音，空格 看答案，1–4 评分，F 已熟悉，S 生词本，Z 撤销，← → 翻词</p>

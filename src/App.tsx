@@ -30,7 +30,7 @@ import {
   type Status,
 } from "./lib/store";
 import { GroupsPage, SettingsPanel, StatsPage, TodayPage, WordsPage, type WordFilter } from "./pages";
-import { Quiz } from "./Quiz";
+import { Quiz, type QuizMode } from "./Quiz";
 import { WordCard } from "./WordCard";
 
 const SYNC_DELAY = 15000;
@@ -164,7 +164,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>("today");
   const [open, setOpen] = useState<Open | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
-  const [quiz, setQuiz] = useState<Group | null>(null);
+  const [quiz, setQuiz] = useState<{ group: Group; mode: QuizMode } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [filter, setFilter] = useState<WordFilter>("all");
   const [groupKey, setGroupKey] = useState("");
@@ -236,6 +236,15 @@ export default function App() {
     void saveProgress(next);
     if (token) schedule();
   };
+  const [systemDark, setSystemDark] = useState(() => matchMedia("(prefers-color-scheme: dark)").matches);
+  useEffect(() => {
+    const media = matchMedia("(prefers-color-scheme: dark)");
+    const onChange = () => setSystemDark(media.matches);
+    media.addEventListener("change", onChange);
+    return () => media.removeEventListener("change", onChange);
+  }, []);
+  const dark = settings.theme === "system" ? systemDark : settings.theme === "dark";
+
   useEffect(() => {
     if (settings.theme === "system") delete document.documentElement.dataset.theme;
     else document.documentElement.dataset.theme = settings.theme;
@@ -381,7 +390,7 @@ export default function App() {
           settings={settings}
           onSettings={changeSettings}
           onStudy={startStudy}
-          onQuiz={setQuiz}
+          onQuiz={(group, mode) => setQuiz({ group, mode })}
           onBrowse={(group) => {
             setGroupKey(group.key);
             setFilter("all");
@@ -445,10 +454,20 @@ export default function App() {
         </div>
       )}
 
+      <button
+        className="theme-toggle"
+        aria-label={dark ? "切换到浅色模式" : "切换到深色模式"}
+        title={dark ? "切换到浅色模式" : "切换到深色模式"}
+        onClick={() => changeSettings({ theme: dark ? "light" : "dark" })}
+      >
+        {dark ? "☀" : "☾"}
+      </button>
+
       {quiz && (
         <Quiz
-          title={quiz.title}
-          scope={quiz.notes}
+          title={quiz.group.title}
+          mode={quiz.mode}
+          scope={quiz.group.notes}
           pool={notes}
           onClose={() => setQuiz(null)}
           onStarWrong={(ids) =>
