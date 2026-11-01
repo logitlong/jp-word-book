@@ -192,16 +192,17 @@ export function WordCard(props: Props) {
             </span>
             <div className="card-actions">
               {study && props.canUndo && (
-                <button className="chip" onClick={props.onUndo} title="撤销上一步（Z）">撤销</button>
+                <button className="chip" onClick={props.onUndo} title="撤销上一步（Z）">撤销 <kbd>Z</kbd></button>
               )}
               {study && (
-                <button className="chip" onClick={props.onFamiliar} title="标记已熟悉，不再安排复习（F）">已熟悉</button>
+                <button className="chip" onClick={props.onFamiliar} title="标记已熟悉，不再安排复习（F）">已熟悉 <kbd>F</kbd></button>
               )}
               <button className={`round${starred ? " starred" : ""}`} onClick={props.onStar} aria-pressed={starred} aria-label="加入生词本" title="生词本（S）">
                 {starred ? "★" : "☆"}
+                <kbd className="corner">S</kbd>
               </button>
               <button className="round" onClick={props.onSettings} aria-label="设置">⚙</button>
-              <button className="round" onClick={props.onClose} aria-label="关闭">✕</button>
+              <button className="round" onClick={props.onClose} aria-label="关闭" title="关闭（Esc）">✕<kbd className="corner">Esc</kbd></button>
             </div>
           </header>
 
