@@ -501,7 +501,7 @@ export function SettingsPanel(props: {
             onChange={(e) => onChange({ autoplay: e.target.checked })} />
         </label>
         <CloudSection cloud={props.cloud} />
-        <p className="muted shortcut">快捷键：R 发音，空格 看答案，1–4 评分，F 已熟悉，S 生词本，Z 撤销，← → 翻词</p>
+        <p className="muted shortcut">快捷键：R 发音，空格 看答案，1 不认识，2 认识，F 已熟悉，S 生词本，Z 撤销，← → 翻词</p>
         <div className="settings-actions">
           <button className="ghost" onClick={exportProgress}>导出进度</button>
           <label className="ghost file">恢复进度

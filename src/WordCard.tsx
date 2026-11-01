@@ -14,10 +14,8 @@ import {
 } from "./lib/store";
 
 const GRADES: { rating: Grade; label: string; key: string }[] = [
-  { rating: Rating.Again, label: "忘了", key: "1" },
-  { rating: Rating.Hard, label: "模糊", key: "2" },
-  { rating: Rating.Good, label: "记得", key: "3" },
-  { rating: Rating.Easy, label: "简单", key: "4" },
+  { rating: Rating.Again, label: "不认识", key: "1" },
+  { rating: Rating.Good, label: "认识", key: "2" },
 ];
 
 const FRONT_HINT = {
@@ -150,7 +148,7 @@ export function WordCard(props: Props) {
       else if (study && !revealed && (key === " " || key === "enter")) {
         e.preventDefault();
         setRevealed(true);
-      } else if (study && revealed && "1234".includes(key)) {
+      } else if (study && revealed && "12".includes(key)) {
         props.onGrade(GRADES[Number(key) - 1].rating);
       } else if (!study && key === "arrowleft") props.onPrev();
       else if (!study && key === "arrowright") props.onNext();

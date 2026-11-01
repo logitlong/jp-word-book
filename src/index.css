@@ -192,10 +192,10 @@ kbd { font: 12px var(--sans); padding: 2px 6px; border: 1px solid var(--edge); b
 
 .card-bottom { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 56px; border-top: 1px solid var(--edge); background: var(--paper); }
 .count { color: var(--muted); font: 18px var(--mincho); }
-.grades { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; width: 100%; }
+.grades { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; width: 100%; }
 .grades button { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 6px; border: 1px solid var(--edge); border-radius: 16px; background: var(--paper); }
 .grades button:first-child b { color: var(--red); }
-.grades button:nth-child(3) { border-color: var(--green); background: var(--green-soft); }
+.grades button:last-child { border-color: var(--green); background: var(--green-soft); }
 .grades small { color: var(--muted); }
 
 .sheet { display: flex; flex-direction: column; width: min(620px, 100%); max-height: calc(100vh - 48px); max-height: calc(100dvh - 48px); padding: 30px 34px; border-radius: 28px; background: var(--paper); overflow-y: auto; }
