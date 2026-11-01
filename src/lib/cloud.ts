@@ -48,7 +48,9 @@ export async function checkToken(token: string) {
 }
 
 export async function downloadNotes() {
-  const res = await fetch(`${PUBLIC_DECK}/notes.json`);
+  const res = await fetch(`${PUBLIC_DECK}/notes.json`).catch(() => {
+    throw new CloudError(0, "词库没有加载到，请检查网络后重试。");
+  });
   if (!res.ok) throw new CloudError(res.status, `词库加载失败（${res.status}）`);
   return (await res.json()) as { name: string; notes: Note[] };
 }

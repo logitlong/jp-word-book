@@ -166,10 +166,12 @@ function Importer({ needsToken, hasDeck, onDone }: { needsToken: boolean; hasDec
       {error && !needsToken && (
         <>
           <button className="solid" onClick={() => void load()}>重试</button>
-          <label className="ghost file">
-            或选择本机 .apkg 文件
-            <input type="file" accept=".apkg" onChange={(e) => void onFile(e.target.files?.[0])} />
-          </label>
+          {PERSONAL && (
+            <label className="ghost file">
+              或选择本机 .apkg 文件
+              <input type="file" accept=".apkg" onChange={(e) => void onFile(e.target.files?.[0])} />
+            </label>
+          )}
         </>
       )}
     </main>

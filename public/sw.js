@@ -3,7 +3,7 @@
 // and the deck on the same origin is kept by the app itself.
 const SCOPE = new URL("./", location).pathname;
 // Both sites share an origin and its cache storage, so names carry the site's path.
-const CACHE = `shell-v3:${SCOPE}`;
+const CACHE = `shell-v4:${SCOPE}`;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -39,7 +39,8 @@ self.addEventListener("fetch", (event) => {
       (async () => {
         const cache = await caches.open(CACHE);
         try {
-          const response = await fetch(request);
+          // The browser may hold the page for ten minutes, which would hide a new version.
+          const response = await fetch(request.url, { cache: "no-cache" });
           if (response.ok) await cache.put("./", response.clone());
           return response;
         } catch {
