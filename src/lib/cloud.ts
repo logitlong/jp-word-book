@@ -7,6 +7,7 @@ import { mergeProgress, type Progress } from "./sync";
 const API = "https://api.github.com/repos/weilong-lab/jp-word-book-data/contents";
 const NOTES_FILE = "deck/notes.json";
 const AUDIO_DIR = "deck/audio";
+const NEURAL_DIR = "deck/neural";
 const ENTRIES_DIR = "deck/entries";
 /** Bump when entry files change, so devices fetch them again. */
 const ENTRIES_VERSION = 1;
@@ -48,15 +49,20 @@ export async function downloadNotes(token: string) {
 }
 
 /** Audio is fetched the first time a word plays, then kept on the device. */
-export async function loadWordAudio(name: string) {
-  const cached = await loadAudio(name);
+export const loadWordAudio = (name: string) => fetchAudio(name, `${AUDIO_DIR}/${encodeURIComponent(name)}`);
+
+/** The generated neural reading of a word, stored by note id. */
+export const loadNeuralAudio = (id: string) => fetchAudio(`neural:${id}`, `${NEURAL_DIR}/${id}.mp3`);
+
+async function fetchAudio(key: string, path: string) {
+  const cached = await loadAudio(key);
   if (cached) return cached;
   const token = await loadToken();
   if (!token) return undefined;
-  const res = await request(token, `${AUDIO_DIR}/${encodeURIComponent(name)}`, "application/vnd.github.raw+json").catch(() => null);
+  const res = await request(token, path, "application/vnd.github.raw+json").catch(() => null);
   if (!res?.ok) return undefined;
   const blob = new Blob([await res.arrayBuffer()], { type: "audio/mpeg" });
-  await saveAudio(name, blob);
+  await saveAudio(key, blob);
   return blob;
 }
 

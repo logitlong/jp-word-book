@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Note } from "./lib/apkg";
-import { loadUnitEntries, loadWordAudio, type WordEntry } from "./lib/cloud";
+import { loadNeuralAudio, loadUnitEntries, loadWordAudio, type WordEntry } from "./lib/cloud";
 import { accentType, circled, isDrawable, pitchPattern } from "./lib/pitch";
 import {
   formatInterval,
@@ -69,8 +69,6 @@ export function WordCard(props: Props) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const urlRef = useRef("");
   const playRequest = useRef(0);
-  const jaVoice = useRef<SpeechSynthesisVoice | null>(null);
-  const [hasJaVoice, setHasJaVoice] = useState(false);
   const [entry, setEntry] = useState<WordEntry | undefined>();
 
   useEffect(() => {
@@ -82,37 +80,17 @@ export function WordCard(props: Props) {
     };
   }, [note.id, note.unit]);
 
-  useEffect(() => {
-    const pick = () => {
-      jaVoice.current = speechSynthesis.getVoices().find((v) => v.lang.startsWith("ja")) ?? null;
-      setHasJaVoice(!!jaVoice.current);
-    };
-    pick();
-    speechSynthesis.addEventListener("voiceschanged", pick);
-    return () => speechSynthesis.removeEventListener("voiceschanged", pick);
-  }, []);
-
   const stop = useCallback(() => {
     playRequest.current += 1;
     audioRef.current?.pause();
-    speechSynthesis.cancel();
     setPlaying(false);
   }, []);
 
   const play = useCallback(async () => {
     stop();
     setMissing(false);
-    if (settings.voice === 2 && jaVoice.current) {
-      const utterance = new SpeechSynthesisUtterance(note.reading);
-      utterance.voice = jaVoice.current;
-      utterance.lang = "ja-JP";
-      utterance.onend = () => setPlaying(false);
-      setPlaying(true);
-      speechSynthesis.speak(utterance);
-      return;
-    }
     const request = ++playRequest.current;
-    const blob = note.audio ? await loadWordAudio(note.audio) : undefined;
+    const blob = settings.voice === 2 ? await loadNeuralAudio(note.id) : note.audio ? await loadWordAudio(note.audio) : undefined;
     // The word may have changed while its audio was downloading.
     if (request !== playRequest.current) return;
     if (!blob) {
@@ -133,9 +111,16 @@ export function WordCard(props: Props) {
   const listenFront = study && settings.mode === "listen";
   useEffect(() => {
     if (settings.autoplay && (revealed || listenFront)) void play();
-    // Play once per word; switching voice replays through the buttons below.
+    // Play once per word; switching voice replays through the effect below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note.id, revealed]);
+
+  const shownVoice = useRef(settings.voice);
+  useEffect(() => {
+    if (shownVoice.current === settings.voice) return;
+    shownVoice.current = settings.voice;
+    void play();
+  }, [play, settings.voice]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -252,11 +237,10 @@ export function WordCard(props: Props) {
                     </button>
                     <button
                       className={settings.voice === 2 ? "active" : ""}
-                      disabled={!hasJaVoice}
-                      title={hasJaVoice ? "浏览器自带的日语语音，声调可能和牌组不同" : "这台设备没有日语系统语音"}
+                      title="微软神经网络语音，更自然，但声调可能和牌组标注不同"
                       onClick={() => props.onVoice(2)}
                     >
-                      系统语音
+                      神经语音
                     </button>
                   </div>
                   {missing && <span className="audio-note">这个词没有音频</span>}
