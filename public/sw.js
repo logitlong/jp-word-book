@@ -1,8 +1,9 @@
 // Keeps the app's own files on the device so it opens without a connection.
 // Only this app's own path is cached: GitHub requests, and so the token, never pass through here,
 // and the deck on the same origin is kept by the app itself.
-const CACHE = "shell-v2";
 const SCOPE = new URL("./", location).pathname;
+// Both sites share an origin and its cache storage, so names carry the site's path.
+const CACHE = `shell-v3:${SCOPE}`;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -21,7 +22,7 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
       const names = await caches.keys();
-      await Promise.all(names.filter((name) => name !== CACHE).map((name) => caches.delete(name)));
+      await Promise.all(names.filter((name) => name !== CACHE && (name.endsWith(`:${SCOPE}`) || !name.includes(":"))).map((name) => caches.delete(name)));
       await self.clients.claim();
     })(),
   );

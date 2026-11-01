@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.app.json --noEmit && vite build",
+    "build:public": "VITE_EDITION=public vite build --outDir dist-public",
     "lint": "oxlint",
     "preview": "vite preview"
   },

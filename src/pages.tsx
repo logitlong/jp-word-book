@@ -1,3 +1,4 @@
+import { PERSONAL } from "./lib/edition";
 import { useMemo, useState } from "react";
 import type { Note } from "./lib/apkg";
 import type { QuizMode } from "./Quiz";
@@ -433,38 +434,14 @@ export interface CloudControls {
 }
 
 function CloudSection({ cloud }: { cloud: CloudControls }) {
-  const [token, setToken] = useState("");
   return (
     <section className="cloud">
       <h3>云同步</h3>
-      {!cloud.connected && <p className="muted">没有令牌也能用：进度保存在这台设备，换设备时用下方的导出和恢复。</p>}
-      {cloud.connected ? (
-        <>
-          <p className="muted">{cloud.label}。进度保存到你的私有仓库。</p>
-          <div className="settings-actions">
-            <button className="ghost" onClick={cloud.onSyncNow}>立即同步</button>
-            <button className="ghost" onClick={cloud.onDisconnect}>断开这台设备</button>
-          </div>
-        </>
-      ) : (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (token.trim()) cloud.onConnect(token.trim());
-          }}
-        >
-          <input
-            type="password"
-            autoComplete="off"
-            spellCheck={false}
-            placeholder="粘贴 GitHub 访问令牌"
-            aria-label="GitHub 访问令牌"
-            value={token}
-            onChange={(e) => setToken(e.target.value)}
-          />
-          <button className="ghost" disabled={!token.trim()}>连接</button>
-        </form>
-      )}
+      <p className="muted">{cloud.label}。进度保存到你的私有仓库。</p>
+      <div className="settings-actions">
+        <button className="ghost" onClick={cloud.onSyncNow}>立即同步</button>
+        <button className="ghost" onClick={cloud.onDisconnect}>断开这台设备</button>
+      </div>
       {cloud.error && <p className="error">{cloud.error}</p>}
     </section>
   );
@@ -522,8 +499,14 @@ export function SettingsPanel(props: {
           <input type="checkbox" checked={settings.autoplay}
             onChange={(e) => onChange({ autoplay: e.target.checked })} />
         </label>
-        <CloudSection cloud={props.cloud} />
-        <p className="muted shortcut">快捷键：R 发音，空格 看答案，1 不认识，2 认识，F 已熟悉，S 生词本，Z 撤销，← → 翻词</p>
+        {PERSONAL ? (
+          <CloudSection cloud={props.cloud} />
+        ) : (
+          <p className="muted local-note">学习进度保存在这台设备的浏览器里。换设备或清理浏览器数据前，请先导出进度，到新设备上恢复。</p>
+        )}
+        <p className="muted shortcut">
+          快捷键：空格 翻面，翻面后再按一次算认识；D 不认识；R 发音；F 已熟悉；S 生词本；Z 撤销；← → 翻词；Esc 关闭
+        </p>
         <div className="settings-actions">
           <button className="ghost" onClick={exportProgress}>导出进度</button>
           <label className="ghost file">恢复进度

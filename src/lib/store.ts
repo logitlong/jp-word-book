@@ -1,4 +1,8 @@
-import { clear, del, get, set, setMany } from "idb-keyval";
+import { clear, createStore, del, get, set, setMany } from "idb-keyval";
+import { PERSONAL } from "./edition";
+
+// Both sites share one origin, so the public one must never open the owner's database.
+const db = PERSONAL ? undefined : createStore("n1-word-book", "keyval");
 import { createEmptyCard, fsrs, Rating, type Card, type Grade } from "ts-fsrs";
 import type { Note, ParsedDeck } from "./apkg";
 import { emptyProgress, type Progress } from "./sync";
@@ -43,8 +47,8 @@ export const defaultSettings: Settings = {
 const DECK_VERSION = 3;
 
 export const loadDeck = async () => ({
-  name: await get<string>("deck-name"),
-  notes: (await get<number>("deck-version")) === DECK_VERSION ? await get<Note[]>("deck-notes") : undefined,
+  name: await get<string>("deck-name", db),
+  notes: (await get<number>("deck-version", db)) === DECK_VERSION ? await get<Note[]>("deck-notes", db) : undefined,
 });
 
 export async function saveDeck(deck: ParsedDeck) {
@@ -57,7 +61,7 @@ export async function saveDeck(deck: ParsedDeck) {
     ...[...deck.audio].map(
       ([name, bytes]) => [`audio:${name}`, new Blob([bytes as BlobPart], { type: "audio/mpeg" })] as [string, Blob],
     ),
-  ]);
+  ], db);
 }
 
 /** Older progress and backups kept manually marked words under `mastered`. */
@@ -66,22 +70,22 @@ export function normalizeProgress(saved?: Partial<Progress> & { mastered?: Recor
   return { ...emptyProgress(), ...rest, familiar: { ...mastered, ...rest.familiar } };
 }
 
-export const loadAudio = (name: string) => get<Blob>(`audio:${name}`);
-export const saveAudio = (name: string, blob: Blob) => set(`audio:${name}`, blob);
-export const loadProgress = async () => normalizeProgress(await get("progress"));
-export const saveProgress = (p: Progress) => set("progress", p);
-export const loadSettings = async () => ({ ...defaultSettings, ...(await get<Settings>("settings")) });
-export const saveSettings = (s: Settings) => set("settings", s);
-export const clearAll = () => clear();
+export const loadAudio = (name: string) => get<Blob>(`audio:${name}`, db);
+export const saveAudio = (name: string, blob: Blob) => set(`audio:${name}`, blob, db);
+export const loadProgress = async () => normalizeProgress(await get("progress", db));
+export const saveProgress = (p: Progress) => set("progress", p, db);
+export const loadSettings = async () => ({ ...defaultSettings, ...(await get<Settings>("settings", db)) });
+export const saveSettings = (s: Settings) => set("settings", s, db);
+export const clearAll = () => clear(db);
 
-export const loadEntries = <T,>(key: string) => get<T>(`entries:${key}`);
-export const saveEntries = <T,>(key: string, value: T) => set(`entries:${key}`, value);
+export const loadEntries = <T,>(key: string) => get<T>(`entries:${key}`, db);
+export const saveEntries = <T,>(key: string, value: T) => set(`entries:${key}`, value, db);
 
-export const loadToken = () => get<string>("cloud-token");
-export const saveToken = (token: string) => set("cloud-token", token);
-export const clearToken = () => del("cloud-token");
-export const loadSyncSha = () => get<string>("cloud-sha");
-export const saveSyncSha = (sha: string) => set("cloud-sha", sha);
+export const loadToken = () => get<string>("cloud-token", db);
+export const saveToken = (token: string) => set("cloud-token", token, db);
+export const clearToken = () => del("cloud-token", db);
+export const loadSyncSha = () => get<string>("cloud-sha", db);
+export const saveSyncSha = (sha: string) => set("cloud-sha", sha, db);
 
 export const dayKey = (now = new Date()) =>
   `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;

@@ -6,7 +6,7 @@ import { mergeProgress, type Progress } from "./sync";
 
 const API = "https://api.github.com/repos/weilong-lab/jp-word-book-data/contents";
 /** The word list, entries and deck audio are public; everything else needs a token. */
-const PUBLIC_DECK = "https://weilong-lab.github.io/jp-word-book-deck/deck";
+const PUBLIC_DECK = "https://weilong-lab.github.io/n1-word-book/deck";
 const NEURAL_DIR = "deck/neural";
 const EXAMPLES_DIR = "deck/examples";
 /** Bump when entry files change, so devices fetch them again. */
@@ -40,6 +40,12 @@ async function request(token: string, path: string, accept: string, init?: Reque
     },
   });
   return res;
+}
+
+/** Rejects a token that cannot read the private repository. */
+export async function checkToken(token: string) {
+  const res = await request(token, "README.md", "application/vnd.github.object+json");
+  if (!res.ok) throw new CloudError(res.status, describe(res.status));
 }
 
 export async function downloadNotes() {

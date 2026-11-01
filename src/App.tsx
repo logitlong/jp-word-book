@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { parseApkg, type Note } from "./lib/apkg";
-import { downloadNotes, syncProgress } from "./lib/cloud";
+import { checkToken, downloadNotes, syncProgress } from "./lib/cloud";
+import { PERSONAL } from "./lib/edition";
 import { mergeProgress, stampChanges } from "./lib/sync";
 import {
   buildGroups,
@@ -77,9 +78,10 @@ interface Summary {
   familiar: number;
 }
 
-function Importer({ onDone }: { onDone: () => void }) {
+function Importer({ needsToken, hasDeck, onDone }: { needsToken: boolean; hasDeck: boolean; onDone: (token?: string) => void }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const [token, setToken] = useState("");
   const started = useRef(false);
 
   const fail = (e: unknown) => {
@@ -108,8 +110,23 @@ function Importer({ onDone }: { onDone: () => void }) {
       fail(e);
     }
   };
+  const connect = async () => {
+    setBusy("正在验证令牌…");
+    setError("");
+    try {
+      await checkToken(token.trim());
+      if (!hasDeck) {
+        const { name, notes } = await downloadNotes();
+        await saveDeck({ name, notes, audio: new Map() });
+      }
+      await saveToken(token.trim());
+      onDone(token.trim());
+    } catch (e) {
+      fail(e);
+    }
+  };
   useEffect(() => {
-    if (started.current) return;
+    if (needsToken || started.current) return;
     started.current = true;
     void load();
     // Runs once when a device has no deck yet.
@@ -119,10 +136,35 @@ function Importer({ onDone }: { onDone: () => void }) {
   return (
     <main className="importer">
       <h1>背单词</h1>
+      {needsToken && (
+        <section className="connect">
+          <h2>填写访问令牌</h2>
+          <p>每台设备只需填一次，令牌只保存在这台设备上。</p>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (token.trim()) void connect();
+            }}
+          >
+            <input
+              type="password"
+              autoComplete="off"
+              spellCheck={false}
+              placeholder="粘贴 GitHub 访问令牌"
+              aria-label="GitHub 访问令牌"
+              value={token}
+              disabled={!!busy}
+              onChange={(e) => setToken(e.target.value)}
+            />
+            <button className="solid" disabled={!!busy || !token.trim()}>进入</button>
+          </form>
+          <a href={TOKEN_URL} target="_blank" rel="noreferrer">去 GitHub 生成令牌</a>
+        </section>
+      )}
       {busy && <p aria-live="polite">{busy}</p>}
-      {error && (
+      {error && <p className="error">{error}</p>}
+      {error && !needsToken && (
         <>
-          <p className="error">{error}</p>
           <button className="solid" onClick={() => void load()}>重试</button>
           <label className="ghost file">
             或选择本机 .apkg 文件
@@ -240,7 +282,10 @@ export default function App() {
   const byId = useMemo(() => new Map((notes ?? []).map((n) => [n.id, n])), [notes]);
 
   if (!ready) return null;
-  if (!notes) return <Importer onDone={() => void refresh()} />;
+  const needsToken = PERSONAL && !token;
+  if (!notes || needsToken) {
+    return <Importer needsToken={needsToken} hasDeck={!!notes} onDone={(value) => void refresh(value)} />;
+  }
 
   const startStudy = (title: string, ids: string[]) => {
     if (!ids.length) return;
@@ -491,7 +536,7 @@ export default function App() {
             setShowSettings(false);
           }}
           onResetProgress={() => {
-            if (!confirm("确定重置学习进度吗？复习安排、已熟悉、学习记录和统计都会清空，已连接的设备也会同步清空。牌组、生词本和笔记保留。这一步不能撤销，建议先导出进度。")) return;
+            if (!confirm(`确定重置学习进度吗？复习安排、已熟悉、学习记录和统计都会清空${PERSONAL ? "，已连接的设备也会同步清空" : ""}。牌组、生词本和笔记保留。这一步不能撤销，建议先导出进度。`)) return;
             undoStack.current = [];
             setOpen(null);
             setSummary(null);
