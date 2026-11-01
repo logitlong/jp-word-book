@@ -187,7 +187,7 @@ kbd { font: 12px var(--sans); padding: 2px 6px; border: 1px solid var(--edge); b
 .pos { margin-top: 24px; color: var(--muted); font-size: 15px; }
 .meaning { margin-top: 10px; font-size: 22px; line-height: 1.75; }
 .prompt { margin-top: 28px; color: var(--muted); font-size: 18px; }
-.tap-hint { display: none; }
+.tap-hint, .blank-hint { display: none; }
 .word-card hr { margin: 28px 0 24px; border: 0; border-top: 1px solid var(--edge); }
 .word-card h2 { margin-bottom: 14px; color: var(--ink-2); font-size: 16px; font-weight: 600; }
 .pills { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -334,6 +334,7 @@ select { padding-right: 34px !important; background-image: linear-gradient(45deg
   .card-scroll.front .headword { margin-top: auto; }
   .card-scroll.front .listen-row { justify-content: center; }
   .card-scroll.front .tap-hint { display: block; margin: 8px 0 auto; color: var(--muted); font-size: 14px; }
+  .blank-hint { display: block; margin-top: 10px; color: var(--muted); font-size: 13px; }
   .card-bottom { padding: 12px 20px calc(12px + env(safe-area-inset-bottom)); }
   .card-bottom .solid { flex: 1; min-height: 56px; font-size: 17px; }
   .card-bottom .count { flex: none; }

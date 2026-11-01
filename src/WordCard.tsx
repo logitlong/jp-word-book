@@ -24,6 +24,8 @@ const FRONT_HINT = {
   recall: "看释义，回想日语单词",
 };
 
+const TEXT_OR_CONTROL = "button, textarea, input, a, h1, h2, p, span, kbd";
+
 function PitchReading({ reading, accent }: { reading: string; accent: number }) {
   return (
     <span className="pitch" aria-label={`${reading}，声调 ${accent}`}>
@@ -181,7 +183,13 @@ export function WordCard(props: Props) {
         aria-label={note.word}
         onClick={(e) => {
           e.stopPropagation();
-          if (study && !revealed && !(e.target as HTMLElement).closest("button")) setRevealed(true);
+          const target = e.target as HTMLElement;
+          if (study && !revealed) {
+            if (!target.closest("button")) setRevealed(true);
+          } else if (matchMedia("(hover: none)").matches && !target.closest(TEXT_OR_CONTROL)) {
+            // On a touch screen the listen button can be a long reach away.
+            void play();
+          }
         }}
       >
         <div className={`card-scroll${revealed ? "" : " front"}`}>
@@ -253,6 +261,7 @@ export function WordCard(props: Props) {
                   </div>
                   {missing && <span className="audio-note">这个词没有音频</span>}
                 </div>
+                <p className="blank-hint">点击任意空白处，可再听发音</p>
               </div>
 
               <div className="card-detail">
