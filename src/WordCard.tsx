@@ -46,7 +46,7 @@ interface Props {
   settings: Settings;
   /** Study mode hides the answer until revealed and grades instead of paging. */
   study: boolean;
-  /** Neural and example audio are private, so they need a connected token. */
+  /** Neural audio is private, so it needs a connected token. */
   extras: boolean;
   tag: string;
   canUndo: boolean;
@@ -273,7 +273,6 @@ export function WordCard(props: Props) {
                         <p className="sense-ja">{sense.ja}</p>
                         {sense.examples.map((example, j) => (
                           <div className="example" key={j}>
-                            {props.extras && (
                             <button
                               className="example-play"
                               aria-label="听例句"
@@ -281,7 +280,6 @@ export function WordCard(props: Props) {
                             >
                               ▶
                             </button>
-                            )}
                             <div>
                               <p lang="ja">{example.ja}</p>
                               <p>{example.zh}</p>

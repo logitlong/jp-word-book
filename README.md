@@ -3,9 +3,9 @@
 无敌绿宝书 N1 背词网页，有两个站点：
 
 - 公开版 https://weilong-lab.github.io/n1-word-book/ ：打开就能用，进度保存在本机，可导出和恢复。
-- 私人版 https://weilong-lab.github.io/jp-word-book/ ：必须填访问令牌，进度同步到私有仓库，并有神经语音和例句音频。
+- 私人版 https://weilong-lab.github.io/jp-word-book/ ：必须填访问令牌，进度同步到私有仓库，并有神经语音。
 
-词表、词条和牌组音频来自公开仓库 [n1-word-book](https://github.com/weilong-lab/n1-word-book)，第一次使用时加载，并留在设备上。
+词表、词条、牌组音频和例句音频来自公开仓库 [n1-word-book](https://github.com/weilong-lab/n1-word-book)，第一次使用时加载，并留在设备上。
 
 ```bash
 npm install

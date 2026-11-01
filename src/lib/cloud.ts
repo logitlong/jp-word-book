@@ -8,7 +8,6 @@ const API = "https://api.github.com/repos/weilong-lab/jp-word-book-data/contents
 /** The word list, entries and deck audio are public; everything else needs a token. */
 const PUBLIC_DECK = "https://weilong-lab.github.io/n1-word-book/deck";
 const NEURAL_DIR = "deck/neural";
-const EXAMPLES_DIR = "deck/examples";
 /** Bump when entry files change, so devices fetch them again. */
 const ENTRIES_VERSION = 2;
 const PROGRESS_FILE = "progress.json";
@@ -55,21 +54,23 @@ export async function downloadNotes() {
 }
 
 /** Audio is fetched the first time a word plays, then kept on the device. */
-export async function loadWordAudio(name: string) {
-  const cached = await loadAudio(name);
-  if (cached) return cached;
-  const res = await fetch(`${PUBLIC_DECK}/audio/${encodeURIComponent(name)}`).catch(() => null);
-  if (!res?.ok) return undefined;
-  const blob = new Blob([await res.arrayBuffer()], { type: "audio/mpeg" });
-  await saveAudio(name, blob);
-  return blob;
-}
+export const loadWordAudio = (name: string) => fetchPublicAudio(name, `audio/${encodeURIComponent(name)}`);
 
 /** The generated neural reading of a word, stored by note id. */
 export const loadNeuralAudio = (id: string) => fetchPrivateAudio(`neural:${id}`, `${NEURAL_DIR}/${id}.mp3`);
 
 /** Example sentences are stored as `<note id>-<sense>-<example>`. */
-export const loadExampleAudio = (name: string) => fetchPrivateAudio(`example:${name}`, `${EXAMPLES_DIR}/${name}.mp3`);
+export const loadExampleAudio = (name: string) => fetchPublicAudio(`example:${name}`, `examples/${name}.mp3`);
+
+async function fetchPublicAudio(key: string, path: string) {
+  const cached = await loadAudio(key);
+  if (cached) return cached;
+  const res = await fetch(`${PUBLIC_DECK}/${path}`).catch(() => null);
+  if (!res?.ok) return undefined;
+  const blob = new Blob([await res.arrayBuffer()], { type: "audio/mpeg" });
+  await saveAudio(key, blob);
+  return blob;
+}
 
 async function fetchPrivateAudio(key: string, path: string) {
   const cached = await loadAudio(key);
