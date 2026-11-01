@@ -313,6 +313,7 @@ select { padding-right: 34px !important; background-image: linear-gradient(45deg
 
 /* Phones and tablets share one way of working: bottom tabs and full-screen study. */
 @media (max-width: 640px), (hover: none) and (pointer: coarse) {
+  .page { padding-top: calc(20px + env(safe-area-inset-top)); }
   .tabs { position: fixed; right: 0; bottom: 0; left: 0; z-index: 5; justify-content: space-around; padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); border-top: 1px solid var(--edge); border-radius: 0; background: var(--paper); }
   .tabs button { flex: 1; min-height: 44px; padding: 0; }
   .tabs .active { background: var(--green-soft); box-shadow: none; }
@@ -338,7 +339,7 @@ select { padding-right: 34px !important; background-image: linear-gradient(45deg
 
 /* Tablets: the same controls, with room for wider lists and a readable study column. */
 @media (hover: none) and (pointer: coarse) and (min-width: 641px) {
-  .page { max-width: none; padding: 28px 32px 112px; }
+  .page { max-width: none; padding: calc(28px + env(safe-area-inset-top)) 32px 112px; }
   .tabs { justify-content: center; gap: 8px; }
   .tabs button { flex: 0 1 200px; }
   .card-scroll, .card-bottom, .quiz-sheet { padding-right: max(40px, calc(50% - 360px)); padding-left: max(40px, calc(50% - 360px)); }
