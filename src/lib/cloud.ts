@@ -1,7 +1,7 @@
 import { strFromU8, strToU8 } from "fflate";
 import type { Note } from "./apkg";
 import type { ExamType } from "./examBank";
-import { loadAudio, loadEntries, loadToken, saveAudio, saveEntries } from "./store";
+import { DECK_VERSION, loadAudio, loadEntries, loadToken, saveAudio, saveEntries } from "./store";
 import { mergeProgress, type Progress } from "./sync";
 
 const API = "https://api.github.com/repos/logitlong/jp-word-book-data/contents";
@@ -48,7 +48,7 @@ export async function checkToken(token: string) {
 }
 
 export async function downloadNotes() {
-  const res = await fetch(`${PUBLIC_DECK}/notes.json`).catch(() => {
+  const res = await fetch(`${PUBLIC_DECK}/notes.json?v=${DECK_VERSION}`).catch(() => {
     throw new CloudError(0, "词库没有加载到，请检查网络后重试。");
   });
   if (!res.ok) throw new CloudError(res.status, `词库加载失败（${res.status}）`);
