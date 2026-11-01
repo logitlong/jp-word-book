@@ -87,6 +87,25 @@ function parseMediaMap(raw: Uint8Array | undefined) {
   return parseMediaEntries(bytes);
 }
 
+const firstKana = (reading: string) => {
+  const code = reading.codePointAt(0) ?? 0;
+  return code >= 0x30a1 && code <= 0x30f6 ? code - 0x60 : code;
+};
+
+/** The deck stores some units from わ back to あ; those run backwards, and units in another order stay as they are. */
+export function restoreKanaOrder(notes: Note[]) {
+  const units = new Map<string, Note[]>();
+  for (const note of notes) units.set(note.unit, [...(units.get(note.unit) ?? []), note]);
+  return [...units.values()]
+    .flatMap((unit) => {
+      const kana = unit.map((n) => firstKana(n.reading));
+      const rises = kana.filter((k, i) => i > 0 && k > kana[i - 1]).length;
+      const falls = kana.filter((k, i) => i > 0 && k < kana[i - 1]).length;
+      return falls > rises * 2 ? [...unit].reverse() : unit;
+    })
+    .map((note, i) => ({ ...note, order: i }));
+}
+
 export async function parseApkg(fileName: string, data: Uint8Array): Promise<ParsedDeck> {
   const zip = unzipSync(data);
   const raw = zip["collection.anki21b"] ?? zip["collection.anki21"] ?? zip["collection.anki2"];
@@ -119,13 +138,14 @@ export async function parseApkg(fileName: string, data: Uint8Array): Promise<Par
     }
     if (!notes.length) throw new Error("没有找到“日文”字段，这个牌组的格式和绿宝书牌组不同");
     notes.sort((a, b) => a.order - b.order);
+    const ordered = restoreKanaOrder(notes);
 
     const wanted = new Set(notes.map((n) => n.audio).filter(Boolean));
     const audio = new Map<string, Uint8Array>();
     for (const [zipName, mediaName] of Object.entries(parseMediaMap(zip["media"]))) {
       if (wanted.has(mediaName) && zip[zipName]) audio.set(mediaName, unzstd(zip[zipName]));
     }
-    return { name: fileName.replace(/\.apkg$/i, ""), notes, audio };
+    return { name: fileName.replace(/\.apkg$/i, ""), notes: ordered, audio };
   } finally {
     db.close();
   }

@@ -35,7 +35,7 @@ export const defaultSettings: Settings = {
 };
 
 /** Bump when parsing changes: older imports are asked to re-import, and progress keeps working by note id. */
-const DECK_VERSION = 2;
+const DECK_VERSION = 3;
 
 export const loadDeck = async () => ({
   name: await get<string>("deck-name"),
