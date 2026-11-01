@@ -479,6 +479,8 @@ export default function App() {
           results={progress.quiz}
           onAnswer={(id, ok) => update((p) => ({ ...p, quiz: { ...p.quiz, [id]: { ok, at: Date.now() } } }))}
           onClose={() => setQuiz(null)}
+          fontScale={settings.quizScale}
+          onFontScale={(quizScale) => changeSettings({ quizScale })}
           onStarWrong={(ids) =>
             update((p) => ({ ...p, starred: { ...p.starred, ...Object.fromEntries(ids.map((id) => [id, true])) } }))
           }

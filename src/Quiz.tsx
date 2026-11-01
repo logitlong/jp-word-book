@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState, type CSSProperties } from "react";
 import type { Note } from "./lib/apkg";
 import { loadUnitEntries } from "./lib/cloud";
 import { EXAM_BANK, EXAM_SECTIONS, type ExamItem } from "./lib/examBank";
@@ -123,6 +123,11 @@ function Stem({ text }: { text: string }) {
   );
 }
 
+const SCALE_MIN = 0.8;
+const SCALE_MAX = 1.8;
+const stepScale = (scale: number, direction: number) =>
+  Math.min(SCALE_MAX, Math.max(SCALE_MIN, Math.round((scale + direction / 10) * 10) / 10));
+
 export function Quiz(props: {
   title: string;
   mode: QuizMode;
@@ -132,6 +137,8 @@ export function Quiz(props: {
   onAnswer: (id: string, ok: boolean) => void;
   onClose: () => void;
   onStarWrong: (ids: string[]) => void;
+  fontScale: number;
+  onFontScale: (scale: number) => void;
 }) {
   const [questions, setQuestions] = useState<Question[] | null>(null);
   const [examItems, setExamItems] = useState<ExamItem[] | null>(null);
@@ -217,7 +224,29 @@ export function Quiz(props: {
 
   return (
     <div className="overlay full">
-      <section className="sheet quiz-sheet" role="dialog" aria-label="测验">
+      <section
+        className="sheet quiz-sheet"
+        role="dialog"
+        aria-label="测验"
+        style={{ "--quiz-scale": props.fontScale } as CSSProperties}
+      >
+        <div className="font-stepper" role="group" aria-label="题目字号">
+          <button
+            aria-label="缩小字号"
+            disabled={props.fontScale <= SCALE_MIN}
+            onClick={() => props.onFontScale(stepScale(props.fontScale, -1))}
+          >
+            A−
+          </button>
+          <span>{Math.round(props.fontScale * 100)}%</span>
+          <button
+            aria-label="放大字号"
+            disabled={props.fontScale >= SCALE_MAX}
+            onClick={() => props.onFontScale(stepScale(props.fontScale, 1))}
+          >
+            A+
+          </button>
+        </div>
         <button className="round sheet-close" onClick={props.onClose} aria-label="关闭">✕</button>
         {!questions ? (
           <>

@@ -18,6 +18,8 @@ export interface Settings {
   groupBy: "deck" | "size";
   groupSize: number;
   theme: "system" | "light" | "dark";
+  /** Quiz text size on this device, as a multiple of the default. */
+  quizScale: number;
 }
 
 export const GROUP_SIZE_MIN = 10;
@@ -34,6 +36,7 @@ export const defaultSettings: Settings = {
   groupBy: "deck",
   groupSize: 50,
   theme: "system",
+  quizScale: 1,
 };
 
 /** Bump when parsing changes: older imports are asked to re-import, and progress keeps working by note id. */
