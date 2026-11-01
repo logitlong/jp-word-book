@@ -20,11 +20,11 @@ const GRADES: { rating: Grade; label: string; key: string }[] = [
   { rating: Rating.Easy, label: "简单", key: "4" },
 ];
 
-const STATUSES: { value: Status; label: string }[] = [
-  { value: "new", label: "未开始" },
-  { value: "learning", label: "学习中" },
-  { value: "mastered", label: "已掌握" },
-];
+const FRONT_HINT = {
+  read: "先在心里读出来，再看答案",
+  listen: "听发音，回想这个词",
+  recall: "看释义，回想日语单词",
+};
 
 function PitchReading({ reading, accent }: { reading: string; accent: number }) {
   return (
@@ -47,6 +47,7 @@ interface Props {
   /** Study mode hides the answer until revealed and grades instead of paging. */
   study: boolean;
   tag: string;
+  canUndo: boolean;
   onPrev: () => void;
   onNext: () => void;
   onClose: () => void;
@@ -55,6 +56,9 @@ interface Props {
   onNote: (text: string) => void;
   onVoice: (voice: 1 | 2) => void;
   onSettings: () => void;
+  onStar: () => void;
+  onFamiliar: () => void;
+  onUndo: () => void;
 }
 
 export function WordCard(props: Props) {
@@ -109,24 +113,25 @@ export function WordCard(props: Props) {
     await audio.play().catch(() => setPlaying(false));
   }, [note, settings.voice, stop]);
 
-  useEffect(() => {
-    setRevealed(!study);
-    setMissing(false);
-    return stop;
-  }, [note.id, study, stop]);
+  useEffect(() => stop, [note.id, stop]);
 
+  const listenFront = study && settings.mode === "listen";
   useEffect(() => {
-    if (settings.autoplay && revealed) void play();
+    if (settings.autoplay && (revealed || listenFront)) void play();
     // Play once per word; switching voice replays through the buttons below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [note.id, revealed]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).tagName === "TEXTAREA") return;
+      const tagName = (e.target as HTMLElement).tagName;
+      if (tagName === "TEXTAREA" || tagName === "INPUT") return;
       const key = e.key.toLowerCase();
       if (key === "escape") props.onClose();
       else if (key === "r") void play();
+      else if (key === "s") props.onStar();
+      else if (study && key === "f") props.onFamiliar();
+      else if (study && key === "z" && props.canUndo) props.onUndo();
       else if (study && !revealed && (key === " " || key === "enter")) {
         e.preventDefault();
         setRevealed(true);
@@ -141,6 +146,13 @@ export function WordCard(props: Props) {
 
   const status = statusOf(note.id, progress);
   const intervals = previewIntervals(progress.cards[note.id], settings.retention);
+  const starred = !!progress.starred[note.id];
+  const showWord = revealed || settings.mode === "read" || !study;
+  const pills: { value: Status; label: string; active: boolean }[] = [
+    { value: "new", label: "未学", active: status === "new" },
+    { value: "learning", label: status === "mastered" ? "已掌握" : "学习中", active: status === "learning" || status === "mastered" },
+    { value: "familiar", label: "已熟悉", active: status === "familiar" },
+  ];
 
   return (
     <div className="overlay" onClick={props.onClose}>
@@ -152,12 +164,25 @@ export function WordCard(props: Props) {
               {tag}
             </span>
             <div className="card-actions">
+              {study && props.canUndo && (
+                <button className="chip" onClick={props.onUndo} title="撤销上一步（Z）">撤销</button>
+              )}
+              {study && (
+                <button className="chip" onClick={props.onFamiliar} title="标记已熟悉，不再安排复习（F）">已熟悉</button>
+              )}
+              <button className={`round${starred ? " starred" : ""}`} onClick={props.onStar} aria-pressed={starred} aria-label="加入生词本" title="生词本（S）">
+                {starred ? "★" : "☆"}
+              </button>
               <button className="round" onClick={props.onSettings} aria-label="设置">⚙</button>
               <button className="round" onClick={props.onClose} aria-label="关闭">✕</button>
             </div>
           </header>
 
-          <h1 className="headword">{note.word}</h1>
+          {showWord ? (
+            <h1 className="headword">{note.word}</h1>
+          ) : (
+            <h1 className="headword hidden-word">？</h1>
+          )}
 
           {revealed ? (
             <>
@@ -211,8 +236,8 @@ export function WordCard(props: Props) {
 
               <h2>学习进度</h2>
               <div className="pills">
-                {STATUSES.map((s) => (
-                  <button key={s.value} className={status === s.value ? "active" : ""} onClick={() => props.onStatus(s.value)}>
+                {pills.map((s) => (
+                  <button key={s.value} className={s.active ? "active" : ""} onClick={() => props.onStatus(s.value)}>
                     {s.label}
                   </button>
                 ))}
@@ -227,7 +252,17 @@ export function WordCard(props: Props) {
               />
             </>
           ) : (
-            <p className="prompt">先在心里读出来，再看答案</p>
+            <>
+              {settings.mode === "recall" && <p className="meaning">{note.meaning}</p>}
+              {settings.mode === "listen" && (
+                <div className="listen-row">
+                  <button className={`listen${playing ? " playing" : ""}`} onClick={() => void play()}>
+                    <span className="play-dot">▶</span>听发音<kbd>R</kbd>
+                  </button>
+                </div>
+              )}
+              <p className="prompt">{FRONT_HINT[settings.mode]}</p>
+            </>
           )}
         </div>
 

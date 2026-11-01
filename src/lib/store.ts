@@ -5,23 +5,59 @@ import type { Note, ParsedDeck } from "./apkg";
 export { Rating };
 export type { Grade };
 
+export type StudyMode = "read" | "listen" | "recall";
+
 export interface Settings {
   dailyNew: number;
   retention: number;
   autoplay: boolean;
   voice: 1 | 2;
+  mode: StudyMode;
+  newOrder: "book" | "random";
+  groupBy: "deck" | "size";
+  groupSize: number;
+}
+
+export interface DayLog {
+  new: number;
+  review: number;
+  again: number;
 }
 
 export interface Progress {
   cards: Record<string, Card>;
-  mastered: Record<string, boolean>;
+  /** Words the learner already knows: never scheduled, listed on their own. */
+  familiar: Record<string, boolean>;
+  starred: Record<string, boolean>;
   notes: Record<string, string>;
   /** Day key -> ids first learned that day, so the daily limit survives reloads. */
   learned: Record<string, string[]>;
+  log: Record<string, DayLog>;
 }
 
-export const defaultSettings: Settings = { dailyNew: 20, retention: 0.9, autoplay: true, voice: 1 };
-export const emptyProgress = (): Progress => ({ cards: {}, mastered: {}, notes: {}, learned: {} });
+export const GROUP_SIZE_MIN = 10;
+export const GROUP_SIZE_MAX = 200;
+export const LEECH_LAPSES = 2;
+
+export const defaultSettings: Settings = {
+  dailyNew: 20,
+  retention: 0.9,
+  autoplay: true,
+  voice: 1,
+  mode: "read",
+  newOrder: "book",
+  groupBy: "deck",
+  groupSize: 50,
+};
+
+export const emptyProgress = (): Progress => ({
+  cards: {},
+  familiar: {},
+  starred: {},
+  notes: {},
+  learned: {},
+  log: {},
+});
 
 /** Bump when parsing changes: older imports are asked to re-import, and progress keeps working by note id. */
 const DECK_VERSION = 2;
@@ -44,8 +80,14 @@ export async function saveDeck(deck: ParsedDeck) {
   ]);
 }
 
+/** Older progress and backups kept manually marked words under `mastered`. */
+export function normalizeProgress(saved?: Partial<Progress> & { mastered?: Record<string, boolean> }): Progress {
+  const { mastered, ...rest } = saved ?? {};
+  return { ...emptyProgress(), ...rest, familiar: { ...mastered, ...rest.familiar } };
+}
+
 export const loadAudio = (name: string) => get<Blob>(`audio:${name}`);
-export const loadProgress = async () => ({ ...emptyProgress(), ...(await get<Progress>("progress")) });
+export const loadProgress = async () => normalizeProgress(await get("progress"));
 export const saveProgress = (p: Progress) => set("progress", p);
 export const loadSettings = async () => ({ ...defaultSettings, ...(await get<Settings>("settings")) });
 export const saveSettings = (s: Settings) => set("settings", s);
@@ -91,22 +133,109 @@ export function formatInterval(ms: number) {
   return months < 12 ? `${months}个月` : `${(days / 365).toFixed(1)}年`;
 }
 
-export type Status = "new" | "learning" | "mastered";
+export type Status = "new" | "learning" | "mastered" | "familiar";
 
-/** Mastered = manually marked, or FSRS stability of at least 21 days in review state. */
+export const STATUS_LABEL: Record<Status, string> = {
+  new: "未学",
+  learning: "学习中",
+  mastered: "已掌握",
+  familiar: "已熟悉",
+};
+
+/** Mastered comes from FSRS (stability of at least 21 days); familiar is the learner's own call. */
 export function statusOf(id: string, p: Progress): Status {
-  if (p.mastered[id]) return "mastered";
+  if (p.familiar[id]) return "familiar";
   const card = p.cards[id];
   if (!card) return "new";
   return card.state === 2 && card.stability >= 21 ? "mastered" : "learning";
 }
 
+export const isDue = (id: string, p: Progress, now = new Date()) => {
+  const card = p.cards[id];
+  return !!card && !p.familiar[id] && new Date(card.due) <= now;
+};
+
+export const isUnseen = (id: string, p: Progress) => !p.cards[id] && !p.familiar[id];
+
+export function shuffled<T>(items: T[]) {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
+export const orderNew = (notes: Note[], s: Settings) => (s.newOrder === "random" ? shuffled(notes) : notes);
+
 export function buildQueue(notes: Note[], p: Progress, s: Settings, now = new Date()) {
-  const due = notes.filter((n) => {
-    const card = p.cards[n.id];
-    return card && !p.mastered[n.id] && new Date(card.due) <= now;
-  });
+  const due = notes.filter((n) => isDue(n.id, p, now));
   const left = Math.max(0, s.dailyNew - (p.learned[dayKey(now)]?.length ?? 0));
-  const fresh = notes.filter((n) => !p.cards[n.id] && !p.mastered[n.id]).slice(0, left);
-  return { due, fresh };
+  const unseen = notes.filter((n) => isUnseen(n.id, p));
+  return { due, fresh: orderNew(unseen, s).slice(0, left), unseen };
+}
+
+export interface Group {
+  key: string;
+  title: string;
+  notes: Note[];
+}
+
+const unitNumber = (unit: string) => unit.match(/(\d+)$/)?.[1];
+
+/** Words split by the deck's own units, or into equal runs of the chosen size in book order. */
+export function buildGroups(notes: Note[], s: Settings): Group[] {
+  if (s.groupBy === "size") {
+    const size = Math.min(GROUP_SIZE_MAX, Math.max(GROUP_SIZE_MIN, s.groupSize || GROUP_SIZE_MIN));
+    const groups: Group[] = [];
+    for (let i = 0; i < notes.length; i += size) {
+      groups.push({ key: `size-${size}-${i}`, title: `第 ${groups.length + 1} 组`, notes: notes.slice(i, i + size) });
+    }
+    return groups;
+  }
+  const units = new Map<string, Note[]>();
+  for (const note of notes) {
+    const unit = note.unit || "未分组";
+    if (!units.has(unit)) units.set(unit, []);
+    units.get(unit)!.push(note);
+  }
+  return [...units].map(([unit, list]) => {
+    const number = unitNumber(unit);
+    return { key: unit, title: number ? `第 ${number} 单元` : unit, notes: list };
+  });
+}
+
+const dayFrom = (now: Date, offset: number) =>
+  new Date(now.getFullYear(), now.getMonth(), now.getDate() + offset);
+
+/** Consecutive study days ending today, or yesterday when today has no reviews yet. */
+export function streak(p: Progress, now = new Date()) {
+  const studied = (d: Date) => !!p.log[dayKey(d)];
+  let offset = studied(now) ? 0 : -1;
+  let days = 0;
+  while (studied(dayFrom(now, offset))) {
+    days += 1;
+    offset -= 1;
+  }
+  return days;
+}
+
+export const recentDays = (p: Progress, count: number, now = new Date()) =>
+  Array.from({ length: count }, (_, i) => {
+    const date = dayFrom(now, i - count + 1);
+    const log = p.log[dayKey(date)] ?? { new: 0, review: 0, again: 0 };
+    return { date, ...log };
+  });
+
+/** Words falling due on each of the next days; anything already overdue counts as today. */
+export function forecast(notes: Note[], p: Progress, count: number, now = new Date()) {
+  const days = Array.from({ length: count }, (_, i) => ({ date: dayFrom(now, i), due: 0 }));
+  const start = dayFrom(now, 0).getTime();
+  for (const note of notes) {
+    const card = p.cards[note.id];
+    if (!card || p.familiar[note.id]) continue;
+    const offset = Math.floor((new Date(card.due).getTime() - start) / 86400000);
+    if (offset < count) days[Math.max(0, offset)].due += 1;
+  }
+  return days;
 }
