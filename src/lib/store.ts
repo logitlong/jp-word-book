@@ -71,6 +71,9 @@ export const loadSettings = async () => ({ ...defaultSettings, ...(await get<Set
 export const saveSettings = (s: Settings) => set("settings", s);
 export const clearAll = () => clear();
 
+export const loadEntries = <T,>(key: string) => get<T>(`entries:${key}`);
+export const saveEntries = <T,>(key: string, value: T) => set(`entries:${key}`, value);
+
 export const loadToken = () => get<string>("cloud-token");
 export const saveToken = (token: string) => set("cloud-token", token);
 export const clearToken = () => del("cloud-token");

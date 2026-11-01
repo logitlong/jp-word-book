@@ -63,7 +63,7 @@ kbd { font: 12px var(--sans); padding: 2px 6px; border: 1px solid var(--edge); b
 
 .page { max-width: 1040px; margin: 0 auto; padding: 28px 24px 64px; }
 .top-bar { display: flex; align-items: center; gap: 16px; }
-.top-bar > div { min-width: 0; margin-right: auto; }
+.top-bar > div:first-child { min-width: 0; margin-right: auto; }
 .top-bar h1 { font: 600 24px var(--mincho); overflow-wrap: anywhere; }
 .top-bar p { margin-top: 4px; color: var(--muted); font-size: 14px; }
 .tabs { display: flex; gap: 4px; padding: 4px; border-radius: 24px; background: var(--soft); }
@@ -216,8 +216,16 @@ kbd { font: 12px var(--sans); padding: 2px 6px; border: 1px solid var(--edge); b
 .exam-stem u { text-underline-offset: 5px; }
 .exam-score { display: grid; gap: 8px; margin: 16px 0 0; padding: 0; list-style: none; }
 .exam-score li { display: flex; justify-content: space-between; gap: 12px; color: var(--ink-2); }
+.senses { display: grid; gap: 16px; margin: 12px 0 0; padding: 0; list-style: none; }
+.sense-zh { margin: 0; font-size: 17px; line-height: 1.6; }
+.sense-zh .pos { display: inline; margin-right: 8px; color: var(--muted); font-size: 13px; }
+.sense-ja { margin: 4px 0 0; color: var(--ink-2); font-family: var(--mincho); font-size: 15px; line-height: 1.7; }
+.example { margin-top: 8px; padding-left: 12px; border-left: 2px solid var(--edge); font-size: 14px; line-height: 1.7; }
+.example p { margin: 0; color: var(--muted); }
+.example p[lang] { color: var(--ink); font-family: var(--mincho); font-size: 15px; }
+.count-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 10px; margin-top: 20px; }
 .quiz-finish { display: block; margin: 14px auto 0; color: var(--muted); font-size: 13px; }
-.theme-toggle { position: fixed; top: 50%; right: 12px; z-index: 30; width: 40px; height: 40px; border: 1px solid var(--edge); border-radius: 50%; background: var(--paper); color: var(--ink); font-size: 18px; line-height: 1; box-shadow: 0 2px 8px rgba(0, 0, 0, .16); transform: translateY(-50%); }
+.top-actions { display: flex; flex: none; gap: 8px; }
 .quiz-next { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 18px; color: var(--ink-2); }
 .wrong-list { display: grid; gap: 8px; margin: 18px 0 0; padding: 0; list-style: none; }
 .wrong-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; }

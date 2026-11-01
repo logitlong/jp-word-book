@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import type { Note } from "./lib/apkg";
-import { EXAM_BANK, EXAM_SECTIONS } from "./lib/examBank";
+import { loadUnitEntries } from "./lib/cloud";
+import { EXAM_BANK, EXAM_SECTIONS, type ExamItem } from "./lib/examBank";
 import { shuffled } from "./lib/store";
 
 export type QuizMode = "exam" | "words";
@@ -12,10 +13,13 @@ interface Question {
   headword: boolean;
   word: string;
   answer: string;
-  options: string[];
+  /** Built when shown, since ranking distractors across the deck is slow for long quizzes. */
+  makeOptions: () => string[];
 }
 
 const MODE_LABEL: Record<QuizMode, string> = { exam: "真题形式", words: "单词测验" };
+const COUNTS: Record<QuizMode, number[]> = { exam: [25, 50, 100], words: [20, 30, 50] };
+const FULL_PAPER = EXAM_SECTIONS.reduce((sum, section) => sum + section.count, 0);
 
 /** First clause of a definition, so explanations stay short and readable. */
 const shortMeaning = (meaning: string) => {
@@ -23,21 +27,21 @@ const shortMeaning = (meaning: string) => {
   return (text.split(/[。；;（(]/)[0] || text || meaning).slice(0, 30);
 };
 
-/** One paper in exam layout, taking the group's own words first. */
-function buildExam(scope: Note[]): Question[] {
-  const words = new Set(scope.map((n) => n.word));
+/** A paper keeping the exam's share of each section, in exam order. */
+function buildExam(items: ExamItem[], count: number): Question[] {
   return EXAM_SECTIONS.flatMap((section) => {
-    const items = shuffled(EXAM_BANK.filter((item) => item.type === section.type));
-    const ordered = [...items.filter((item) => words.has(item.word)), ...items.filter((item) => !words.has(item.word))];
-    return ordered.slice(0, section.count).map((item) => ({
-      section: section.title,
-      rule: section.rule,
-      stem: item.stem,
-      headword: item.type === "usage",
-      word: item.word,
-      answer: item.options[0],
-      options: shuffled(item.options),
-    }));
+    const share = Math.round((count * section.count) / FULL_PAPER);
+    return shuffled(items.filter((item) => item.type === section.type))
+      .slice(0, count >= items.length ? undefined : share)
+      .map((item) => ({
+        section: section.title,
+        rule: section.rule,
+        stem: item.stem,
+        headword: item.type === "usage",
+        word: item.word,
+        answer: item.options[0],
+        makeOptions: () => shuffled(item.options),
+      }));
   });
 }
 
@@ -46,36 +50,45 @@ const closeness = (note: Note, other: Note) =>
   (note.pos === other.pos ? 1 : 0) +
   (note.reading.length === other.reading.length ? 1 : 0);
 
-/** Three wrong answers, closest words first, skipping any that would also be correct. */
-function distractors(note: Note, pool: Note[], valueOf: (n: Note) => string, excluded: (n: Note) => boolean) {
-  const answer = valueOf(note);
-  const ranked = shuffled(pool)
-    .filter((other) => valueOf(other) !== answer && !excluded(other))
-    .sort((a, b) => closeness(note, b) - closeness(note, a));
-  return [...new Set(ranked.map(valueOf))].slice(0, 3);
+type Face = "word" | "reading" | "meaning";
+
+const FACE_LABEL: Record<Face, string> = { word: "汉字", reading: "读音", meaning: "释义" };
+const faceOf = (note: Note, face: Face) =>
+  face === "meaning" ? shortMeaning(note.meaning) : face === "reading" && hasKanji(note) ? note.reading : note.word;
+const hasKanji = (note: Note) => /[\u4e00-\u9fff]/.test(note.word);
+
+function faceQuestion(note: Note, from: Face, to: Face, pool: Note[]): Question {
+  const answer = faceOf(note, to);
+  const stem = faceOf(note, from);
+  return {
+    section: `看${FACE_LABEL[from]}选${FACE_LABEL[to]}`,
+    rule: `看${FACE_LABEL[from]}，选出对应的${FACE_LABEL[to]}。`,
+    stem,
+    headword: from !== "meaning",
+    word: note.word,
+    answer,
+    makeOptions: () => {
+      // Words sharing the prompt would make a second correct answer.
+      const ranked = shuffled(pool)
+        .filter((other) => faceOf(other, to) !== answer && faceOf(other, from) !== stem && faceOf(other, to))
+        .sort((a, b) => closeness(note, b) - closeness(note, a));
+      return shuffled([answer, ...[...new Set(ranked.map((other) => faceOf(other, to)))].slice(0, 3)]);
+    },
+  };
 }
 
-/** Every word of the group once, each asked in a randomly chosen way. */
-function buildWordQuiz(scope: Note[], pool: Note[]): Question[] {
-  return shuffled(scope).map((note) => {
-    const hasKanji = note.word !== note.reading;
-    const sameReading = (n: Note) => n.reading === note.reading;
-    const kinds = hasKanji ? (["reading", "kanji", "meaning"] as const) : (["meaning"] as const);
-    const kind = kinds[Math.floor(Math.random() * kinds.length)];
-    const base = { headword: true, word: note.word };
-    if (kind === "reading") {
-      const options = distractors(note, pool, (n) => n.reading, () => false);
-      return { ...base, section: "看汉字选读音", rule: "选出这个词的读音。", stem: note.word, answer: note.reading, options: shuffled([note.reading, ...options]) };
-    }
-    if (kind === "kanji") {
-      const options = distractors(note, pool, (n) => n.word, sameReading);
-      return { ...base, section: "看读音选汉字", rule: "选出这个读音对应的写法。", stem: note.reading, answer: note.word, options: shuffled([note.word, ...options]) };
-    }
-    const meaning = shortMeaning(note.meaning);
-    const options = distractors(note, pool, (n) => n.word, (n) => shortMeaning(n.meaning) === meaning);
-    return { ...base, headword: false, section: "看释义选汉字", rule: "选出符合这个释义的单词。", stem: meaning, answer: note.word, options: shuffled([note.word, ...options]) };
+/** Every way of asking every word. Short quizzes cover as many different words as they can. */
+function buildWordQuiz(scope: Note[], pool: Note[], count: number): Question[] {
+  const rounds = scope.map((note) => {
+    const faces: Face[] = hasKanji(note) ? ["word", "reading", "meaning"] : ["reading", "meaning"];
+    const pairs = faces.flatMap((from) => faces.filter((to) => to !== from).map((to) => [from, to] as const));
+    return shuffled(pairs).map(([from, to]) => ({ note, from, to }));
   });
+  const queue = [0, 1, 2, 3, 4, 5].flatMap((round) => shuffled(rounds.flatMap((pairs) => pairs[round] ?? [])));
+  return shuffled(queue.slice(0, count)).map(({ note, from, to }) => faceQuestion(note, from, to, pool));
 }
+
+const wordQuizSize = (scope: Note[]) => scope.reduce((sum, note) => sum + (hasKanji(note) ? 6 : 2), 0);
 
 function Stem({ text }: { text: string }) {
   return (
@@ -93,19 +106,37 @@ export function Quiz(props: {
   onClose: () => void;
   onStarWrong: (ids: string[]) => void;
 }) {
-  const questions = useMemo(
-    () => (props.mode === "exam" ? buildExam(props.scope) : buildWordQuiz(props.scope, props.pool)),
-    [props.mode, props.scope, props.pool],
-  );
+  const [questions, setQuestions] = useState<Question[] | null>(null);
+  const [examItems, setExamItems] = useState<ExamItem[] | null>(null);
+
+  useEffect(() => {
+    if (props.mode !== "exam") return;
+    let current = true;
+    void Promise.all([...new Set(props.scope.map((n) => n.unit))].map(loadUnitEntries)).then((units) => {
+      if (!current) return;
+      const entries = units.flatMap((unit) => Object.values(unit));
+      const ids = new Set(props.scope.map((n) => n.id));
+      const items = entries.filter((e) => ids.has(e.id)).flatMap((e) => e.exams.map((q) => ({ ...q, word: e.word })));
+      setExamItems(items.length ? items : EXAM_BANK);
+    });
+    return () => {
+      current = false;
+    };
+  }, [props.mode, props.scope]);
+
+  const available = props.mode === "exam" ? (examItems?.length ?? 0) : wordQuizSize(props.scope);
+  const begin = (count: number) =>
+    setQuestions(props.mode === "exam" ? buildExam(examItems ?? [], count) : buildWordQuiz(props.scope, props.pool, count));
   const noteOf = (word: string) => props.pool.find((n) => n.word === word);
   const [index, setIndex] = useState(0);
   const [picked, setPicked] = useState<string | null>(null);
   const [wrong, setWrong] = useState<Question[]>([]);
   const [finished, setFinished] = useState(false);
   const [saved, setSaved] = useState(false);
-  const question = finished ? undefined : questions[index];
+  const question = finished ? undefined : questions?.[index];
+  const options = useMemo(() => question?.makeOptions() ?? [], [question]);
   const note = question && noteOf(question.word);
-  const answered = questions.slice(0, picked === null ? index : index + 1);
+  const answered = (questions ?? []).slice(0, picked === null ? index : index + 1);
   const wrongNotes = wrong.flatMap((item) => noteOf(item.word) ?? []);
   const sections = [...new Set(answered.map((q) => q.section))];
 
@@ -115,7 +146,7 @@ export function Quiz(props: {
     if (option !== question.answer) setWrong((list) => [...list, question]);
   };
   const next = () => {
-    if (index + 1 === questions.length) {
+    if (index + 1 === questions?.length) {
       setFinished(true);
       return;
     }
@@ -130,7 +161,7 @@ export function Quiz(props: {
         e.preventDefault();
         next();
       } else if (question && "1234".includes(e.key)) {
-        const option = question.options[Number(e.key) - 1];
+        const option = options[Number(e.key) - 1];
         if (option) pick(option);
       }
     };
@@ -141,13 +172,25 @@ export function Quiz(props: {
   return (
     <div className="overlay" onClick={props.onClose}>
       <section className="sheet" role="dialog" aria-label="测验" onClick={(e) => e.stopPropagation()}>
-        {question ? (
+        {!questions ? (
           <>
-            <p className="sheet-meta">{question.section} · {index + 1} / {questions.length}</p>
+            <p className="sheet-meta">{props.title} · {MODE_LABEL[props.mode]}</p>
+            <h2 className="sheet-title">这次测验多少题？</h2>
+            <p className="exam-rule">{available ? `这个分组一共可以出 ${available} 题。` : "正在准备题目…"}</p>
+            <div className="count-choices">
+              {COUNTS[props.mode].filter((count) => count < available).map((count) => (
+                <button className="ghost" key={count} onClick={() => begin(count)}>{count} 题</button>
+              ))}
+              {available > 0 && <button className="solid" onClick={() => begin(available)}>全部 {available} 题</button>}
+            </div>
+          </>
+        ) : question ? (
+          <>
+            <p className="sheet-meta">{question.section} · {index + 1} / {questions?.length}</p>
             <p className="exam-rule">{question.rule}</p>
             <p className={`exam-stem${question.headword ? " word" : ""}`}><Stem text={question.stem} /></p>
             <div className="options">
-              {question.options.map((option, i) => {
+              {options.map((option, i) => {
                 const state = picked === null ? "" : option === question.answer ? "right" : option === picked ? "wrong" : "";
                 return (
                   <button key={option} className={state} onClick={() => pick(option)}>
@@ -159,7 +202,7 @@ export function Quiz(props: {
             {picked !== null && (
               <div className="quiz-next">
                 <span>{question.word}{note ? ` ${note.reading} · ${shortMeaning(note.meaning)}` : ""}</span>
-                <button className="solid" onClick={next}>{index + 1 === questions.length ? "看结果" : "下一题"}</button>
+                <button className="solid" onClick={next}>{index + 1 === questions?.length ? "看结果" : "下一题"}</button>
               </div>
             )}
             {index > 0 && <button className="quiz-finish" onClick={() => setFinished(true)}>提前交卷</button>}

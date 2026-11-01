@@ -1,11 +1,15 @@
 import { strFromU8, strToU8 } from "fflate";
 import type { Note } from "./apkg";
-import { loadAudio, loadToken, saveAudio } from "./store";
+import type { ExamType } from "./examBank";
+import { loadAudio, loadEntries, loadToken, saveAudio, saveEntries } from "./store";
 import { mergeProgress, type Progress } from "./sync";
 
 const API = "https://api.github.com/repos/weilong-lab/jp-word-book-data/contents";
 const NOTES_FILE = "deck/notes.json";
 const AUDIO_DIR = "deck/audio";
+const ENTRIES_DIR = "deck/entries";
+/** Bump when entry files change, so devices fetch them again. */
+const ENTRIES_VERSION = 1;
 const PROGRESS_FILE = "progress.json";
 
 export class CloudError extends Error {
@@ -54,6 +58,51 @@ export async function loadWordAudio(name: string) {
   const blob = new Blob([await res.arrayBuffer()], { type: "audio/mpeg" });
   await saveAudio(name, blob);
   return blob;
+}
+
+export interface Sense {
+  pos: string;
+  zh: string;
+  ja: string;
+  examples: { ja: string; zh: string }[];
+}
+
+export interface WordEntry {
+  id: string;
+  word: string;
+  senses: Sense[];
+  exams: { type: ExamType; stem: string; options: string[] }[];
+}
+
+type UnitEntries = Record<string, WordEntry>;
+const unitEntries = new Map<string, Promise<UnitEntries>>();
+
+async function fetchUnitEntries(number: string) {
+  const key = `${ENTRIES_VERSION}:${number}`;
+  const cached = await loadEntries<UnitEntries>(key);
+  if (cached) return cached;
+  const token = await loadToken();
+  if (!token) return {};
+  const res = await request(token, `${ENTRIES_DIR}/u${number.padStart(2, "0")}.json`, "application/vnd.github.raw+json");
+  if (!res.ok) return {};
+  const list = (await res.json()) as WordEntry[];
+  const entries = Object.fromEntries(list.map((entry) => [entry.id, entry]));
+  await saveEntries(key, entries);
+  return entries;
+}
+
+/** Rewritten entries for a deck unit; units without them yet resolve to nothing. */
+export function loadUnitEntries(unit: string) {
+  const number = unit.match(/(\d+)$/)?.[1];
+  if (!number) return Promise.resolve<UnitEntries>({});
+  if (!unitEntries.has(number)) {
+    const pending = fetchUnitEntries(number).catch(() => {
+      unitEntries.delete(number);
+      return {};
+    });
+    unitEntries.set(number, pending);
+  }
+  return unitEntries.get(number)!;
 }
 
 /** Files over 1MB come back without content from the JSON view, so the sha and the body are separate calls. */

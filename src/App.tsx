@@ -370,7 +370,17 @@ export default function App() {
             </button>
           ))}
         </nav>
-        <button className="round" onClick={() => setShowSettings(true)} aria-label="设置">⚙</button>
+        <div className="top-actions">
+          <button
+            className="round"
+            aria-label={dark ? "切换到浅色模式" : "切换到深色模式"}
+            title={dark ? "切换到浅色模式" : "切换到深色模式"}
+            onClick={() => changeSettings({ theme: dark ? "light" : "dark" })}
+          >
+            {dark ? "☀" : "☾"}
+          </button>
+          <button className="round" onClick={() => setShowSettings(true)} aria-label="设置">⚙</button>
+        </div>
       </header>
 
       {tab === "today" && (
@@ -453,15 +463,6 @@ export default function App() {
           </section>
         </div>
       )}
-
-      <button
-        className="theme-toggle"
-        aria-label={dark ? "切换到浅色模式" : "切换到深色模式"}
-        title={dark ? "切换到浅色模式" : "切换到深色模式"}
-        onClick={() => changeSettings({ theme: dark ? "light" : "dark" })}
-      >
-        {dark ? "☀" : "☾"}
-      </button>
 
       {quiz && (
         <Quiz

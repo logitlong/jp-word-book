@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Note } from "./lib/apkg";
-import { loadWordAudio } from "./lib/cloud";
+import { loadUnitEntries, loadWordAudio, type WordEntry } from "./lib/cloud";
 import { accentType, circled, isDrawable, pitchPattern } from "./lib/pitch";
 import {
   formatInterval,
@@ -71,6 +71,16 @@ export function WordCard(props: Props) {
   const playRequest = useRef(0);
   const jaVoice = useRef<SpeechSynthesisVoice | null>(null);
   const [hasJaVoice, setHasJaVoice] = useState(false);
+  const [entry, setEntry] = useState<WordEntry | undefined>();
+
+  useEffect(() => {
+    let current = true;
+    setEntry(undefined);
+    void loadUnitEntries(note.unit).then((entries) => current && setEntry(entries[note.id]));
+    return () => {
+      current = false;
+    };
+  }, [note.id, note.unit]);
 
   useEffect(() => {
     const pick = () => {
@@ -235,8 +245,27 @@ export function WordCard(props: Props) {
                 {missing && <span className="audio-note">这个词没有音频</span>}
               </div>
 
-              {note.pos && <p className="pos">{note.pos}</p>}
-              <p className="meaning">{note.meaning}</p>
+              {entry ? (
+                <ol className="senses">
+                  {entry.senses.map((sense, i) => (
+                    <li key={i}>
+                      <p className="sense-zh"><span className="pos">{sense.pos}</span>{sense.zh}</p>
+                      <p className="sense-ja">{sense.ja}</p>
+                      {sense.examples.map((example, j) => (
+                        <div className="example" key={j}>
+                          <p lang="ja">{example.ja}</p>
+                          <p>{example.zh}</p>
+                        </div>
+                      ))}
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <>
+                  {note.pos && <p className="pos">{note.pos}</p>}
+                  <p className="meaning">{note.meaning}</p>
+                </>
+              )}
               <hr />
 
               <h2>学习进度</h2>
