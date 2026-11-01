@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Note } from "./lib/apkg";
+import { loadWordAudio } from "./lib/cloud";
 import { accentType, circled, isDrawable, pitchPattern } from "./lib/pitch";
 import {
   formatInterval,
-  loadAudio,
   previewIntervals,
   Rating,
   statusOf,
@@ -68,6 +68,7 @@ export function WordCard(props: Props) {
   const [missing, setMissing] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const urlRef = useRef("");
+  const playRequest = useRef(0);
   const jaVoice = useRef<SpeechSynthesisVoice | null>(null);
   const [hasJaVoice, setHasJaVoice] = useState(false);
 
@@ -82,6 +83,7 @@ export function WordCard(props: Props) {
   }, []);
 
   const stop = useCallback(() => {
+    playRequest.current += 1;
     audioRef.current?.pause();
     speechSynthesis.cancel();
     setPlaying(false);
@@ -99,7 +101,10 @@ export function WordCard(props: Props) {
       speechSynthesis.speak(utterance);
       return;
     }
-    const blob = note.audio ? await loadAudio(note.audio) : undefined;
+    const request = ++playRequest.current;
+    const blob = note.audio ? await loadWordAudio(note.audio) : undefined;
+    // The word may have changed while its audio was downloading.
+    if (request !== playRequest.current) return;
     if (!blob) {
       setMissing(true);
       return;

@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { parseApkg, type Note } from "./lib/apkg";
+import { CloudError, downloadNotes, syncProgress } from "./lib/cloud";
+import { mergeProgress, stampChanges } from "./lib/sync";
 import {
   buildGroups,
   clearAll,
+  clearToken,
   dayKey,
   defaultSettings,
   emptyProgress,
@@ -10,10 +13,14 @@ import {
   loadDeck,
   loadProgress,
   loadSettings,
+  loadSyncSha,
+  loadToken,
   Rating,
   saveDeck,
   saveProgress,
   saveSettings,
+  saveSyncSha,
+  saveToken,
   STATUS_LABEL,
   statusOf,
   type Grade,
@@ -25,6 +32,23 @@ import {
 import { GroupsPage, SettingsPanel, StatsPage, TodayPage, WordsPage, type WordFilter } from "./pages";
 import { Quiz } from "./Quiz";
 import { WordCard } from "./WordCard";
+
+const SYNC_DELAY = 15000;
+export const TOKEN_URL = "https://github.com/settings/personal-access-tokens/new";
+
+type SyncState =
+  | { status: "idle" | "syncing"; at?: Date }
+  | { status: "ok"; at: Date }
+  | { status: "error"; message: string };
+
+function syncLabel(sync: SyncState) {
+  if (sync.status === "error") return "同步失败";
+  if (sync.status === "syncing") return "同步中…";
+  if (sync.status === "ok") {
+    return `已同步 ${sync.at.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" })}`;
+  }
+  return "云同步已连接";
+}
 
 type Tab = "today" | "groups" | "words" | "stats";
 
@@ -52,30 +76,81 @@ interface Summary {
   familiar: number;
 }
 
-function Importer({ onDone }: { onDone: () => void }) {
-  const [busy, setBusy] = useState(false);
+function Importer({ savedToken, onDone }: { savedToken?: string; onDone: (token?: string) => void }) {
+  const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const [token, setToken] = useState("");
+  const started = useRef(false);
+
+  const fail = (e: unknown) => {
+    setError(e instanceof Error ? e.message : "导入失败");
+    setBusy("");
+  };
   const onFile = async (file?: File) => {
     if (!file) return;
-    setBusy(true);
+    setBusy("正在解析牌组…");
     setError("");
     try {
       await saveDeck(await parseApkg(file.name, new Uint8Array(await file.arrayBuffer())));
       onDone();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "导入失败");
-      setBusy(false);
+      fail(e);
     }
   };
+  const connect = async (value: string) => {
+    setBusy("正在连接私有仓库…");
+    setError("");
+    try {
+      const { name, notes } = await downloadNotes(value);
+      await saveDeck({ name, notes, audio: new Map() });
+      await saveToken(value);
+      onDone(value);
+    } catch (e) {
+      if (e instanceof CloudError && e.status === 401) await clearToken();
+      fail(e);
+    }
+  };
+  useEffect(() => {
+    if (savedToken && !started.current) {
+      started.current = true;
+      void connect(savedToken);
+    }
+    // Runs once for a device that already holds a token.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedToken]);
+
   return (
     <main className="importer">
       <h1>背单词</h1>
-      <p>选择你下载的 Anki 牌组（.apkg）。文件只在这个浏览器里解析和保存，不会上传。</p>
-      <label className={`solid file${busy ? " busy" : ""}`}>
-        {busy ? "正在解析牌组…" : "选择 .apkg 文件"}
-        <input type="file" accept=".apkg" disabled={busy} onChange={(e) => void onFile(e.target.files?.[0])} />
-      </label>
+      <section className="connect">
+        <h2>连接我的私有仓库</h2>
+        <p>每台设备只需填一次。之后打开网址就能用，音频播放时才加载。</p>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (token.trim()) void connect(token.trim());
+          }}
+        >
+          <input
+            type="password"
+            autoComplete="off"
+            spellCheck={false}
+            placeholder="粘贴 GitHub 访问令牌"
+            aria-label="GitHub 访问令牌"
+            value={token}
+            disabled={!!busy}
+            onChange={(e) => setToken(e.target.value)}
+          />
+          <button className="solid" disabled={!!busy || !token.trim()}>连接</button>
+        </form>
+        <a href={TOKEN_URL} target="_blank" rel="noreferrer">去 GitHub 生成令牌</a>
+      </section>
+      {busy && <p aria-live="polite">{busy}</p>}
       {error && <p className="error">{error}</p>}
+      <label className={`ghost file${busy ? " busy" : ""}`}>
+        或选择本机 .apkg 文件
+        <input type="file" accept=".apkg" disabled={!!busy} onChange={(e) => void onFile(e.target.files?.[0])} />
+      </label>
     </main>
   );
 }
@@ -96,22 +171,70 @@ export default function App() {
   const progressRef = useRef(progress);
   const undoStack = useRef<{ progress: Progress; session: StudySession }[]>([]);
 
-  const refresh = async () => {
-    const [deck, p, s] = await Promise.all([loadDeck(), loadProgress(), loadSettings()]);
+  const [token, setToken] = useState<string | undefined>();
+  const [sync, setSync] = useState<SyncState>({ status: "idle" });
+  const shaRef = useRef<string | null>(null);
+  const syncing = useRef(false);
+  const syncTimer = useRef<number | undefined>(undefined);
+
+  const refresh = async (nextToken?: string) => {
+    const [deck, p, s, savedToken, sha] = await Promise.all([loadDeck(), loadProgress(), loadSettings(), loadToken(), loadSyncSha()]);
     setDeckName(deck.name ?? "");
     setNotes(deck.notes ?? null);
     setProgress(p);
     progressRef.current = p;
     setSettings(s);
+    shaRef.current = sha ?? null;
+    setToken(nextToken ?? savedToken);
     setReady(true);
   };
   useEffect(() => void refresh(), []);
 
+  const runSync = async () => {
+    if (!token || syncing.current) return;
+    syncing.current = true;
+    setSync((s) => ({ ...s, status: "syncing" }));
+    const snapshot = progressRef.current;
+    try {
+      const result = await syncProgress(token, snapshot, shaRef.current);
+      shaRef.current = result.sha;
+      void saveSyncSha(result.sha);
+      // Words graded while the request ran stay local and go out with the next sync.
+      const latest = progressRef.current;
+      const next = latest === snapshot ? result.progress : { ...mergeProgress(latest, result.progress), dirty: true };
+      progressRef.current = next;
+      setProgress(next);
+      void saveProgress(next);
+      setSync({ status: "ok", at: new Date() });
+      if (next.dirty) schedule();
+    } catch (e) {
+      setSync({ status: "error", message: e instanceof Error ? e.message : "同步失败" });
+    } finally {
+      syncing.current = false;
+    }
+  };
+  const runSyncRef = useRef(runSync);
+  runSyncRef.current = runSync;
+  const schedule = () => {
+    window.clearTimeout(syncTimer.current);
+    syncTimer.current = window.setTimeout(() => void runSyncRef.current(), SYNC_DELAY);
+  };
+
+  useEffect(() => {
+    if (!token) return;
+    void runSyncRef.current();
+    const onVisibility = () => void runSyncRef.current();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [token]);
+
   const update = (fn: (p: Progress) => Progress) => {
-    const next = fn(progressRef.current);
+    const prev = progressRef.current;
+    const next = stampChanges(prev, fn(prev));
     progressRef.current = next;
     setProgress(next);
     void saveProgress(next);
+    if (token) schedule();
   };
   const changeSettings = (patch: Partial<Settings>) => {
     const next = { ...settings, ...patch };
@@ -123,7 +246,7 @@ export default function App() {
   const byId = useMemo(() => new Map((notes ?? []).map((n) => [n.id, n])), [notes]);
 
   if (!ready) return null;
-  if (!notes) return <Importer onDone={() => void refresh()} />;
+  if (!notes) return <Importer savedToken={token} onDone={(value) => void refresh(value)} />;
 
   const startStudy = (title: string, ids: string[]) => {
     if (!ids.length) return;
@@ -224,7 +347,7 @@ export default function App() {
       <header className="top-bar">
         <div>
           <h1>{deckName}</h1>
-          <p>{notes.length.toLocaleString()} 词</p>
+          <p>{notes.length.toLocaleString()} 词{token ? ` · ${syncLabel(sync)}` : ""}</p>
         </div>
         <nav className="tabs" aria-label="页面">
           {TABS.map((t) => (
@@ -333,6 +456,21 @@ export default function App() {
         <SettingsPanel
           settings={settings}
           progress={progress}
+          cloud={{
+            connected: !!token,
+            label: syncLabel(sync),
+            error: sync.status === "error" ? sync.message : undefined,
+            onConnect: (value) => {
+              void saveToken(value);
+              setToken(value);
+            },
+            onSyncNow: () => void runSync(),
+            onDisconnect: () => {
+              void clearToken();
+              setToken(undefined);
+              setSync({ status: "idle" });
+            },
+          }}
           onChange={changeSettings}
           onRestore={(p) => {
             update(() => p);

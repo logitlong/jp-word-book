@@ -1,9 +1,10 @@
-import { clear, get, set, setMany } from "idb-keyval";
+import { clear, del, get, set, setMany } from "idb-keyval";
 import { createEmptyCard, fsrs, Rating, type Card, type Grade } from "ts-fsrs";
 import type { Note, ParsedDeck } from "./apkg";
+import { emptyProgress, type Progress } from "./sync";
 
-export { Rating };
-export type { Grade };
+export { emptyProgress, Rating };
+export type { Grade, Progress };
 
 export type StudyMode = "read" | "listen" | "recall";
 
@@ -16,23 +17,6 @@ export interface Settings {
   newOrder: "book" | "random";
   groupBy: "deck" | "size";
   groupSize: number;
-}
-
-export interface DayLog {
-  new: number;
-  review: number;
-  again: number;
-}
-
-export interface Progress {
-  cards: Record<string, Card>;
-  /** Words the learner already knows: never scheduled, listed on their own. */
-  familiar: Record<string, boolean>;
-  starred: Record<string, boolean>;
-  notes: Record<string, string>;
-  /** Day key -> ids first learned that day, so the daily limit survives reloads. */
-  learned: Record<string, string[]>;
-  log: Record<string, DayLog>;
 }
 
 export const GROUP_SIZE_MIN = 10;
@@ -49,15 +33,6 @@ export const defaultSettings: Settings = {
   groupBy: "deck",
   groupSize: 50,
 };
-
-export const emptyProgress = (): Progress => ({
-  cards: {},
-  familiar: {},
-  starred: {},
-  notes: {},
-  learned: {},
-  log: {},
-});
 
 /** Bump when parsing changes: older imports are asked to re-import, and progress keeps working by note id. */
 const DECK_VERSION = 2;
@@ -87,11 +62,18 @@ export function normalizeProgress(saved?: Partial<Progress> & { mastered?: Recor
 }
 
 export const loadAudio = (name: string) => get<Blob>(`audio:${name}`);
+export const saveAudio = (name: string, blob: Blob) => set(`audio:${name}`, blob);
 export const loadProgress = async () => normalizeProgress(await get("progress"));
 export const saveProgress = (p: Progress) => set("progress", p);
 export const loadSettings = async () => ({ ...defaultSettings, ...(await get<Settings>("settings")) });
 export const saveSettings = (s: Settings) => set("settings", s);
 export const clearAll = () => clear();
+
+export const loadToken = () => get<string>("cloud-token");
+export const saveToken = (token: string) => set("cloud-token", token);
+export const clearToken = () => del("cloud-token");
+export const loadSyncSha = () => get<string>("cloud-sha");
+export const saveSyncSha = (sha: string) => set("cloud-sha", sha);
 
 export const dayKey = (now = new Date()) =>
   `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
