@@ -283,9 +283,6 @@ select { padding-right: 34px !important; background-image: linear-gradient(45deg
 
 @media (max-width: 640px) {
   .page { padding: 20px 16px 96px; }
-  .tabs { position: fixed; right: 0; bottom: 0; left: 0; z-index: 5; justify-content: space-around; padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); border-top: 1px solid var(--edge); border-radius: 0; background: var(--paper); }
-  .tabs button { flex: 1; min-height: 44px; padding: 0; }
-  .tabs .active { background: var(--green-soft); box-shadow: none; }
   .today, .panel { margin-top: 16px; padding: 22px 20px; }
   .overview, .group-list, .word-grid { gap: 12px; margin-top: 16px; }
   .group-list li { padding: 20px; }
@@ -298,6 +295,27 @@ select { padding-right: 34px !important; background-image: linear-gradient(45deg
   .filters .ghost { flex-basis: 100%; }
   .group-list { grid-template-columns: 1fr; }
   .overlay { padding: 8px; }
+  .word-card { max-height: calc(100vh - 16px); max-height: calc(100dvh - 16px); border-width: 4px; border-radius: 24px; }
+  .headword { font-size: 48px; }
+  .meaning { font-size: 18px; }
+  .listen { min-height: 52px; font-size: 16px; }
+  .grades { gap: 6px; }
+  .sheet { padding: 26px 22px; }
+  .settings { padding: 26px 22px; }
+  .settings-actions { grid-template-columns: 1fr 1fr; }
+  .quiz-word { font-size: 40px; }
+  .sheet .segmented { display: grid; grid-template-columns: repeat(4, 1fr); align-self: stretch; }
+  .sheet .segmented button { padding: 0 2px; font-size: 13px; }
+  .quiz-next { flex-direction: column; align-items: stretch; }
+  .sheet-actions { flex-direction: column; }
+  .sheet-actions .solid, .sheet-actions .ghost { width: 100%; }
+}
+
+/* Phones and tablets share one way of working: bottom tabs and full-screen study. */
+@media (max-width: 640px), (hover: none) and (pointer: coarse) {
+  .tabs { position: fixed; right: 0; bottom: 0; left: 0; z-index: 5; justify-content: space-around; padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); border-top: 1px solid var(--edge); border-radius: 0; background: var(--paper); }
+  .tabs button { flex: 1; min-height: 44px; padding: 0; }
+  .tabs .active { background: var(--green-soft); box-shadow: none; }
   .overlay.full { padding: 0; place-items: stretch; background: var(--paper); backdrop-filter: none; }
   .word-card, .quiz-sheet { width: 100%; height: 100vh; height: 100dvh; max-height: none; border: 0; border-radius: 0; }
   .card-scroll { display: flex; flex-direction: column; padding: calc(16px + env(safe-area-inset-top)) 20px 18px; overscroll-behavior: contain; }
@@ -312,23 +330,29 @@ select { padding-right: 34px !important; background-image: linear-gradient(45deg
   .card-bottom .count { flex: none; }
   .grades button { padding: 14px 6px; }
   .solid, .ghost { white-space: nowrap; }
-  .sheet .segmented { display: grid; grid-template-columns: repeat(4, 1fr); align-self: stretch; }
-  .sheet .segmented button { padding: 0 2px; font-size: 13px; }
-  .quiz-next { flex-direction: column; align-items: stretch; }
-  .sheet-actions { flex-direction: column; }
-  .sheet-actions .solid, .sheet-actions .ghost { width: 100%; }
   .quiz-sheet { padding-top: calc(26px + env(safe-area-inset-top)); padding-bottom: calc(26px + env(safe-area-inset-bottom)); overscroll-behavior: contain; }
   .sheet-close { top: calc(14px + env(safe-area-inset-top)); right: 14px; }
   .sprint header { top: calc(16px + env(safe-area-inset-top)); }
   .sprint-hint { bottom: calc(32px + env(safe-area-inset-bottom)); }
-  .headword { font-size: 48px; }
-  .meaning { font-size: 18px; }
-  .listen { min-height: 52px; font-size: 16px; }
-  .grades { gap: 6px; }
-  .sheet { padding: 26px 22px; }
-  .settings { padding: 26px 22px; }
-  .settings-actions { grid-template-columns: 1fr 1fr; }
-  .quiz-word { font-size: 40px; }
+}
+
+/* Tablets: the same controls, with room for wider lists and a readable study column. */
+@media (hover: none) and (pointer: coarse) and (min-width: 641px) {
+  .page { max-width: none; padding: 28px 32px 112px; }
+  .tabs { justify-content: center; gap: 8px; }
+  .tabs button { flex: 0 1 200px; }
+  .card-scroll, .card-bottom, .quiz-sheet { padding-right: max(40px, calc(50% - 360px)); padding-left: max(40px, calc(50% - 360px)); }
+  .sheet-close { right: 28px; top: calc(20px + env(safe-area-inset-top)); }
+  .card-scroll.front .headword { font-size: 88px; }
+}
+
+/* Landscape tablets put the word beside its meanings so less scrolling is needed. */
+@media (hover: none) and (pointer: coarse) and (min-width: 900px) and (orientation: landscape) {
+  .card-scroll, .card-bottom { padding-right: 48px; padding-left: 48px; }
+  .card-body { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 56px; align-items: start; }
+  .card-side { position: sticky; top: 0; }
+  .card-detail > :first-child { margin-top: 26px; }
+  .grades { max-width: 720px; margin: 0 auto; }
 }
 
 @media (hover: none) {

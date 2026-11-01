@@ -200,100 +200,104 @@ export function WordCard(props: Props) {
             </div>
           </header>
 
-          {showWord ? (
-            <h1 className="headword">{note.word}</h1>
-          ) : (
-            <h1 className="headword hidden-word">？</h1>
-          )}
-
           {revealed ? (
-            <>
-              {note.accents.map((a) => (
-                <div className="reading-row" key={a}>
-                  {isDrawable(note.reading, a) ? (
-                    <>
-                      <PitchReading reading={note.reading} accent={a} />
-                      <span className="accent-mark">{circled(a)}</span>
-                      <span className="accent-type">{accentType(note.reading, a)}</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="pitch">{note.reading}</span>
-                      <span className="accent-mark">{circled(a)}</span>
-                      <span className="accent-type">牌组标注有误，无法画声调</span>
-                    </>
-                  )}
-                </div>
-              ))}
-              {!note.accents.length && (
-                <div className="reading-row">
-                  <span className="pitch">{note.reading}</span>
-                  <span className="accent-type">牌组未标声调</span>
-                </div>
-              )}
-
-              <div className="listen-row">
-                <button className={`listen${playing ? " playing" : ""}`} onClick={() => void play()}>
-                  <span className="play-dot">▶</span>听发音<kbd>R</kbd>
-                </button>
-                <div className="voices" role="group" aria-label="声音">
-                  <button className={settings.voice === 1 ? "active" : ""} onClick={() => props.onVoice(1)}>
-                    牌组语音
-                  </button>
-                  <button
-                    className={settings.voice === 2 ? "active" : ""}
-                    disabled={!hasJaVoice}
-                    title={hasJaVoice ? "浏览器自带的日语语音，声调可能和牌组不同" : "这台设备没有日语系统语音"}
-                    onClick={() => props.onVoice(2)}
-                  >
-                    系统语音
-                  </button>
-                </div>
-                {missing && <span className="audio-note">这个词没有音频</span>}
-              </div>
-
-              {entry ? (
-                <ol className="senses">
-                  {entry.senses.map((sense, i) => (
-                    <li key={i}>
-                      <p className="sense-zh"><span className="pos">{sense.pos}</span>{sense.zh}</p>
-                      <p className="sense-ja">{sense.ja}</p>
-                      {sense.examples.map((example, j) => (
-                        <div className="example" key={j}>
-                          <p lang="ja">{example.ja}</p>
-                          <p>{example.zh}</p>
-                        </div>
-                      ))}
-                    </li>
-                  ))}
-                </ol>
-              ) : (
-                <>
-                  {note.pos && <p className="pos">{note.pos}</p>}
-                  <p className="meaning">{note.meaning}</p>
-                </>
-              )}
-              <hr />
-
-              <h2>学习进度</h2>
-              <div className="pills">
-                {pills.map((s) => (
-                  <button key={s.value} className={s.active ? "active" : ""} onClick={() => props.onStatus(s.value)}>
-                    {s.label}
-                  </button>
+            <div className="card-body">
+              <div className="card-side">
+                <h1 className="headword">{note.word}</h1>
+                {note.accents.map((a) => (
+                  <div className="reading-row" key={a}>
+                    {isDrawable(note.reading, a) ? (
+                      <>
+                        <PitchReading reading={note.reading} accent={a} />
+                        <span className="accent-mark">{circled(a)}</span>
+                        <span className="accent-type">{accentType(note.reading, a)}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="pitch">{note.reading}</span>
+                        <span className="accent-mark">{circled(a)}</span>
+                        <span className="accent-type">牌组标注有误，无法画声调</span>
+                      </>
+                    )}
+                  </div>
                 ))}
-              </div>
-              <hr />
+                {!note.accents.length && (
+                  <div className="reading-row">
+                    <span className="pitch">{note.reading}</span>
+                    <span className="accent-type">牌组未标声调</span>
+                  </div>
+                )}
 
-              <h2>我的笔记</h2>
-              <textarea
-                value={progress.notes[note.id] ?? ""}
-                placeholder="写下容易混淆的地方、自己的例句"
-                onChange={(e) => props.onNote(e.target.value)}
-              />
-            </>
+                <div className="listen-row">
+                  <button className={`listen${playing ? " playing" : ""}`} onClick={() => void play()}>
+                    <span className="play-dot">▶</span>听发音<kbd>R</kbd>
+                  </button>
+                  <div className="voices" role="group" aria-label="声音">
+                    <button className={settings.voice === 1 ? "active" : ""} onClick={() => props.onVoice(1)}>
+                      牌组语音
+                    </button>
+                    <button
+                      className={settings.voice === 2 ? "active" : ""}
+                      disabled={!hasJaVoice}
+                      title={hasJaVoice ? "浏览器自带的日语语音，声调可能和牌组不同" : "这台设备没有日语系统语音"}
+                      onClick={() => props.onVoice(2)}
+                    >
+                      系统语音
+                    </button>
+                  </div>
+                  {missing && <span className="audio-note">这个词没有音频</span>}
+                </div>
+              </div>
+
+              <div className="card-detail">
+                {entry ? (
+                  <ol className="senses">
+                    {entry.senses.map((sense, i) => (
+                      <li key={i}>
+                        <p className="sense-zh"><span className="pos">{sense.pos}</span>{sense.zh}</p>
+                        <p className="sense-ja">{sense.ja}</p>
+                        {sense.examples.map((example, j) => (
+                          <div className="example" key={j}>
+                            <p lang="ja">{example.ja}</p>
+                            <p>{example.zh}</p>
+                          </div>
+                        ))}
+                      </li>
+                    ))}
+                  </ol>
+                ) : (
+                  <>
+                    {note.pos && <p className="pos">{note.pos}</p>}
+                    <p className="meaning">{note.meaning}</p>
+                  </>
+                )}
+                <hr />
+
+                <h2>学习进度</h2>
+                <div className="pills">
+                  {pills.map((s) => (
+                    <button key={s.value} className={s.active ? "active" : ""} onClick={() => props.onStatus(s.value)}>
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+                <hr />
+
+                <h2>我的笔记</h2>
+                <textarea
+                  value={progress.notes[note.id] ?? ""}
+                  placeholder="写下容易混淆的地方、自己的例句"
+                  onChange={(e) => props.onNote(e.target.value)}
+                />
+              </div>
+            </div>
           ) : (
             <>
+              {showWord ? (
+                <h1 className="headword">{note.word}</h1>
+              ) : (
+                <h1 className="headword hidden-word">？</h1>
+              )}
               {settings.mode === "recall" && <p className="meaning">{note.meaning}</p>}
               {settings.mode === "listen" && (
                 <div className="listen-row">
