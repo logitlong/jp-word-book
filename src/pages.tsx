@@ -437,6 +437,7 @@ function CloudSection({ cloud }: { cloud: CloudControls }) {
   return (
     <section className="cloud">
       <h3>云同步</h3>
+      {!cloud.connected && <p className="muted">没有令牌也能用：进度保存在这台设备，换设备时用下方的导出和恢复。</p>}
       {cloud.connected ? (
         <>
           <p className="muted">{cloud.label}。进度保存到你的私有仓库。</p>

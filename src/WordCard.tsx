@@ -46,6 +46,8 @@ interface Props {
   settings: Settings;
   /** Study mode hides the answer until revealed and grades instead of paging. */
   study: boolean;
+  /** Neural and example audio are private, so they need a connected token. */
+  extras: boolean;
   tag: string;
   canUndo: boolean;
   onPrev: () => void;
@@ -112,10 +114,10 @@ export function WordCard(props: Props) {
   const play = useCallback(
     () =>
       playFrom(async () => {
-        if (settings.voice === 2) return loadNeuralAudio(note.id);
+        if (settings.voice === 2 && props.extras) return loadNeuralAudio(note.id);
         return note.audio ? loadWordAudio(note.audio) : undefined;
       }),
-    [note, settings.voice, playFrom],
+    [note, settings.voice, props.extras, playFrom],
   );
 
   useEffect(() => stop, [note.id, stop]);
@@ -243,6 +245,7 @@ export function WordCard(props: Props) {
                   <button className={`listen${playing ? " playing" : ""}`} onClick={() => void play()}>
                     <span className="play-dot">▶</span>听发音<kbd>R</kbd>
                   </button>
+{props.extras && (
                   <div className="voices" role="group" aria-label="声音">
                     <button className={settings.voice === 1 ? "active" : ""} onClick={() => props.onVoice(1)}>
                       牌组语音
@@ -255,6 +258,7 @@ export function WordCard(props: Props) {
                       神经语音
                     </button>
                   </div>
+)}
                   {missing && <span className="audio-note">这个词没有音频</span>}
                 </div>
                 <p className="blank-hint">点击任意空白处，可再听发音</p>
@@ -269,6 +273,7 @@ export function WordCard(props: Props) {
                         <p className="sense-ja">{sense.ja}</p>
                         {sense.examples.map((example, j) => (
                           <div className="example" key={j}>
+                            {props.extras && (
                             <button
                               className="example-play"
                               aria-label="听例句"
@@ -276,6 +281,7 @@ export function WordCard(props: Props) {
                             >
                               ▶
                             </button>
+                            )}
                             <div>
                               <p lang="ja">{example.ja}</p>
                               <p>{example.zh}</p>

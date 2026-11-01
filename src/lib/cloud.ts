@@ -5,11 +5,10 @@ import { loadAudio, loadEntries, loadToken, saveAudio, saveEntries } from "./sto
 import { mergeProgress, type Progress } from "./sync";
 
 const API = "https://api.github.com/repos/weilong-lab/jp-word-book-data/contents";
-const NOTES_FILE = "deck/notes.json";
-const AUDIO_DIR = "deck/audio";
+/** The word list, entries and deck audio are public; everything else needs a token. */
+const PUBLIC_DECK = "https://weilong-lab.github.io/jp-word-book-deck/deck";
 const NEURAL_DIR = "deck/neural";
 const EXAMPLES_DIR = "deck/examples";
-const ENTRIES_DIR = "deck/entries";
 /** Bump when entry files change, so devices fetch them again. */
 const ENTRIES_VERSION = 2;
 const PROGRESS_FILE = "progress.json";
@@ -43,22 +42,30 @@ async function request(token: string, path: string, accept: string, init?: Reque
   return res;
 }
 
-export async function downloadNotes(token: string) {
-  const res = await request(token, NOTES_FILE, "application/vnd.github.raw+json");
-  if (!res.ok) throw new CloudError(res.status, describe(res.status));
+export async function downloadNotes() {
+  const res = await fetch(`${PUBLIC_DECK}/notes.json`);
+  if (!res.ok) throw new CloudError(res.status, `词库加载失败（${res.status}）`);
   return (await res.json()) as { name: string; notes: Note[] };
 }
 
 /** Audio is fetched the first time a word plays, then kept on the device. */
-export const loadWordAudio = (name: string) => fetchAudio(name, `${AUDIO_DIR}/${encodeURIComponent(name)}`);
+export async function loadWordAudio(name: string) {
+  const cached = await loadAudio(name);
+  if (cached) return cached;
+  const res = await fetch(`${PUBLIC_DECK}/audio/${encodeURIComponent(name)}`).catch(() => null);
+  if (!res?.ok) return undefined;
+  const blob = new Blob([await res.arrayBuffer()], { type: "audio/mpeg" });
+  await saveAudio(name, blob);
+  return blob;
+}
 
 /** The generated neural reading of a word, stored by note id. */
-export const loadNeuralAudio = (id: string) => fetchAudio(`neural:${id}`, `${NEURAL_DIR}/${id}.mp3`);
+export const loadNeuralAudio = (id: string) => fetchPrivateAudio(`neural:${id}`, `${NEURAL_DIR}/${id}.mp3`);
 
 /** Example sentences are stored as `<note id>-<sense>-<example>`. */
-export const loadExampleAudio = (name: string) => fetchAudio(`example:${name}`, `${EXAMPLES_DIR}/${name}.mp3`);
+export const loadExampleAudio = (name: string) => fetchPrivateAudio(`example:${name}`, `${EXAMPLES_DIR}/${name}.mp3`);
 
-async function fetchAudio(key: string, path: string) {
+async function fetchPrivateAudio(key: string, path: string) {
   const cached = await loadAudio(key);
   if (cached) return cached;
   const token = await loadToken();
@@ -91,9 +98,7 @@ async function fetchUnitEntries(number: string) {
   const key = `${ENTRIES_VERSION}:${number}`;
   const cached = await loadEntries<UnitEntries>(key);
   if (cached) return cached;
-  const token = await loadToken();
-  if (!token) return {};
-  const res = await request(token, `${ENTRIES_DIR}/u${number.padStart(2, "0")}.json`, "application/vnd.github.raw+json");
+  const res = await fetch(`${PUBLIC_DECK}/entries/u${number.padStart(2, "0")}.json`);
   if (!res.ok) return {};
   const list = (await res.json()) as WordEntry[];
   const entries = Object.fromEntries(list.map((entry) => [entry.id, entry]));

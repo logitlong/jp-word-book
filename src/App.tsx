@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { parseApkg, type Note } from "./lib/apkg";
-import { CloudError, downloadNotes, syncProgress } from "./lib/cloud";
+import { downloadNotes, syncProgress } from "./lib/cloud";
 import { mergeProgress, stampChanges } from "./lib/sync";
 import {
   buildGroups,
@@ -77,14 +77,13 @@ interface Summary {
   familiar: number;
 }
 
-function Importer({ savedToken, onDone }: { savedToken?: string; onDone: (token?: string) => void }) {
+function Importer({ onDone }: { onDone: () => void }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
-  const [token, setToken] = useState("");
   const started = useRef(false);
 
   const fail = (e: unknown) => {
-    setError(e instanceof Error ? e.message : "导入失败");
+    setError(e instanceof Error ? e.message : "加载失败");
     setBusy("");
   };
   const onFile = async (file?: File) => {
@@ -98,60 +97,39 @@ function Importer({ savedToken, onDone }: { savedToken?: string; onDone: (token?
       fail(e);
     }
   };
-  const connect = async (value: string) => {
-    setBusy("正在连接私有仓库…");
+  const load = async () => {
+    setBusy("正在加载词库…");
     setError("");
     try {
-      const { name, notes } = await downloadNotes(value);
+      const { name, notes } = await downloadNotes();
       await saveDeck({ name, notes, audio: new Map() });
-      await saveToken(value);
-      onDone(value);
+      onDone();
     } catch (e) {
-      if (e instanceof CloudError && e.status === 401) await clearToken();
       fail(e);
     }
   };
   useEffect(() => {
-    if (savedToken && !started.current) {
-      started.current = true;
-      void connect(savedToken);
-    }
-    // Runs once for a device that already holds a token.
+    if (started.current) return;
+    started.current = true;
+    void load();
+    // Runs once when a device has no deck yet.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [savedToken]);
+  }, []);
 
   return (
     <main className="importer">
       <h1>背单词</h1>
-      <section className="connect">
-        <h2>连接我的私有仓库</h2>
-        <p>每台设备只需填一次。之后打开网址就能用，音频播放时才加载。</p>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (token.trim()) void connect(token.trim());
-          }}
-        >
-          <input
-            type="password"
-            autoComplete="off"
-            spellCheck={false}
-            placeholder="粘贴 GitHub 访问令牌"
-            aria-label="GitHub 访问令牌"
-            value={token}
-            disabled={!!busy}
-            onChange={(e) => setToken(e.target.value)}
-          />
-          <button className="solid" disabled={!!busy || !token.trim()}>连接</button>
-        </form>
-        <a href={TOKEN_URL} target="_blank" rel="noreferrer">去 GitHub 生成令牌</a>
-      </section>
       {busy && <p aria-live="polite">{busy}</p>}
-      {error && <p className="error">{error}</p>}
-      <label className={`ghost file${busy ? " busy" : ""}`}>
-        或选择本机 .apkg 文件
-        <input type="file" accept=".apkg" disabled={!!busy} onChange={(e) => void onFile(e.target.files?.[0])} />
-      </label>
+      {error && (
+        <>
+          <p className="error">{error}</p>
+          <button className="solid" onClick={() => void load()}>重试</button>
+          <label className="ghost file">
+            或选择本机 .apkg 文件
+            <input type="file" accept=".apkg" onChange={(e) => void onFile(e.target.files?.[0])} />
+          </label>
+        </>
+      )}
     </main>
   );
 }
@@ -262,7 +240,7 @@ export default function App() {
   const byId = useMemo(() => new Map((notes ?? []).map((n) => [n.id, n])), [notes]);
 
   if (!ready) return null;
-  if (!notes) return <Importer savedToken={token} onDone={(value) => void refresh(value)} />;
+  if (!notes) return <Importer onDone={() => void refresh()} />;
 
   const startStudy = (title: string, ids: string[]) => {
     if (!ids.length) return;
@@ -431,6 +409,7 @@ export default function App() {
 
       {open && openNote && (
         <WordCard
+          extras={!!token}
           key={session ? `${openNote.id}-${session.index}` : "browse"}
           note={openNote}
           index={session ? session.index : browseIndex}
