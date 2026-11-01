@@ -17,6 +17,7 @@ export interface Settings {
   newOrder: "book" | "random";
   groupBy: "deck" | "size";
   groupSize: number;
+  theme: "system" | "light" | "dark";
 }
 
 export const GROUP_SIZE_MIN = 10;
@@ -32,6 +33,7 @@ export const defaultSettings: Settings = {
   newOrder: "book",
   groupBy: "deck",
   groupSize: 50,
+  theme: "system",
 };
 
 /** Bump when parsing changes: older imports are asked to re-import, and progress keeps working by note id. */

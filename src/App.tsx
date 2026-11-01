@@ -236,6 +236,11 @@ export default function App() {
     void saveProgress(next);
     if (token) schedule();
   };
+  useEffect(() => {
+    if (settings.theme === "system") delete document.documentElement.dataset.theme;
+    else document.documentElement.dataset.theme = settings.theme;
+  }, [settings.theme]);
+
   const changeSettings = (patch: Partial<Settings>) => {
     const next = { ...settings, ...patch };
     setSettings(next);
@@ -474,6 +479,15 @@ export default function App() {
           onChange={changeSettings}
           onRestore={(p) => {
             update(() => p);
+            setShowSettings(false);
+          }}
+          onResetProgress={() => {
+            if (!confirm("确定重置学习进度吗？复习安排、已熟悉、学习记录和统计都会清空，已连接的设备也会同步清空。牌组、生词本和笔记保留。这一步不能撤销，建议先导出进度。")) return;
+            undoStack.current = [];
+            setOpen(null);
+            setSummary(null);
+            update((p) => ({ ...emptyProgress(), starred: p.starred, notes: p.notes, changedAt: p.changedAt, resetAt: Date.now() }));
+            void runSyncRef.current();
             setShowSettings(false);
           }}
           onReset={() => {

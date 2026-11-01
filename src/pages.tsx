@@ -452,6 +452,7 @@ export function SettingsPanel(props: {
   cloud: CloudControls;
   onChange: (patch: Partial<Settings>) => void;
   onRestore: (p: Progress) => void;
+  onResetProgress: () => void;
   onReset: () => void;
   onClose: () => void;
 }) {
@@ -497,6 +498,13 @@ export function SettingsPanel(props: {
           <input type="checkbox" checked={settings.autoplay}
             onChange={(e) => onChange({ autoplay: e.target.checked })} />
         </label>
+        <label>外观
+          <select value={settings.theme} onChange={(e) => onChange({ theme: e.target.value as Settings["theme"] })}>
+            <option value="system">跟随系统</option>
+            <option value="light">浅色</option>
+            <option value="dark">深色</option>
+          </select>
+        </label>
         <CloudSection cloud={props.cloud} />
         <p className="muted shortcut">快捷键：R 发音，空格 看答案，1–4 评分，F 已熟悉，S 生词本，Z 撤销，← → 翻词</p>
         <div className="settings-actions">
@@ -504,6 +512,7 @@ export function SettingsPanel(props: {
           <label className="ghost file">恢复进度
             <input type="file" accept=".json" onChange={(e) => void restore(e.target.files?.[0])} />
           </label>
+          <button className="ghost danger" onClick={props.onResetProgress}>重置学习进度</button>
           <button className="ghost danger" onClick={props.onReset}>清空牌组和进度</button>
         </div>
         <button className="solid" onClick={props.onClose}>完成</button>

@@ -1,28 +1,30 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import type { Note } from "./lib/apkg";
+import { EXAM_BANK, EXAM_SECTIONS, type ExamItem } from "./lib/examBank";
 import { shuffled } from "./lib/store";
 
-const QUESTIONS = 10;
-
-/** First clause of a definition, so options stay short and readable. */
+/** First clause of a definition, so explanations stay short and readable. */
 const shortMeaning = (meaning: string) => {
   const text = meaning.replace(/^\s*[（(<〈][^）)>〉]*[）)>〉]/, "");
   return (text.split(/[。；;（(]/)[0] || text || meaning).slice(0, 30);
 };
 
-function buildQuestions(scope: Note[], pool: Note[]) {
-  return shuffled(scope)
-    .slice(0, QUESTIONS)
-    .map((note) => {
-      const answer = shortMeaning(note.meaning);
-      const wrong = new Set<string>();
-      for (const other of shuffled(pool)) {
-        const text = shortMeaning(other.meaning);
-        if (other.id !== note.id && text && text !== answer) wrong.add(text);
-        if (wrong.size === 3) break;
-      }
-      return { note, answer, options: shuffled([answer, ...wrong]) };
-    });
+/** One paper in exam layout, taking the group's own words first. */
+function buildExam(scope: Note[]) {
+  const words = new Set(scope.map((n) => n.word));
+  return EXAM_SECTIONS.flatMap((section) => {
+    const items = shuffled(EXAM_BANK.filter((item) => item.type === section.type));
+    const ordered = [...items.filter((item) => words.has(item.word)), ...items.filter((item) => !words.has(item.word))];
+    return ordered.slice(0, section.count).map((item) => ({ item, section, answer: item.options[0], options: shuffled(item.options) }));
+  });
+}
+
+function Stem({ text }: { text: string }) {
+  return (
+    <>
+      {text.split(/\{(.+?)\}/).map((part, i) => (i % 2 ? <u key={i}>{part}</u> : <Fragment key={i}>{part}</Fragment>))}
+    </>
+  );
 }
 
 export function Quiz(props: {
@@ -32,17 +34,20 @@ export function Quiz(props: {
   onClose: () => void;
   onStarWrong: (ids: string[]) => void;
 }) {
-  const questions = useMemo(() => buildQuestions(props.scope, props.pool), [props.scope, props.pool]);
+  const questions = useMemo(() => buildExam(props.scope), [props.scope]);
+  const noteOf = (word: string) => props.pool.find((n) => n.word === word);
   const [index, setIndex] = useState(0);
   const [picked, setPicked] = useState<string | null>(null);
-  const [wrong, setWrong] = useState<Note[]>([]);
+  const [wrong, setWrong] = useState<ExamItem[]>([]);
   const [saved, setSaved] = useState(false);
   const question = questions[index];
+  const note = question && noteOf(question.item.word);
+  const wrongNotes = wrong.flatMap((item) => noteOf(item.word) ?? []);
 
   const pick = (option: string) => {
     if (picked !== null || !question) return;
     setPicked(option);
-    if (option !== question.answer) setWrong((list) => [...list, question.note]);
+    if (option !== question.answer) setWrong((list) => [...list, question.item]);
   };
   const next = () => {
     setPicked(null);
@@ -69,8 +74,9 @@ export function Quiz(props: {
       <section className="sheet" role="dialog" aria-label="测验" onClick={(e) => e.stopPropagation()}>
         {question ? (
           <>
-            <p className="sheet-meta">{props.title} · 测验 {index + 1} / {questions.length}</p>
-            <h1 className="headword quiz-word">{question.note.word}</h1>
+            <p className="sheet-meta">{question.section.title} · {index + 1} / {questions.length}</p>
+            <p className="exam-rule">{question.section.rule}</p>
+            <p className={`exam-stem${question.item.type === "usage" ? " word" : ""}`}><Stem text={question.item.stem} /></p>
             <div className="options">
               {question.options.map((option, i) => {
                 const state = picked === null ? "" : option === question.answer ? "right" : option === picked ? "wrong" : "";
@@ -83,30 +89,39 @@ export function Quiz(props: {
             </div>
             {picked !== null && (
               <div className="quiz-next">
-                <span>{question.note.reading}</span>
-                <button className="solid" onClick={next}>下一题</button>
+                <span>{question.item.word}{note ? ` ${note.reading} · ${shortMeaning(note.meaning)}` : ""}</span>
+                <button className="solid" onClick={next}>{index + 1 === questions.length ? "看结果" : "下一题"}</button>
               </div>
             )}
           </>
         ) : (
           <>
-            <p className="sheet-meta">{props.title} · 测验完成</p>
+            <p className="sheet-meta">{props.title} · 文字・語彙 完成</p>
             <h2 className="sheet-title">答对 {questions.length - wrong.length} / {questions.length}</h2>
+            <ul className="exam-score">
+              {EXAM_SECTIONS.map((section) => (
+                <li key={section.type}>
+                  <span>{section.title}</span>
+                  <b>{section.count - wrong.filter((item) => item.type === section.type).length} / {section.count}</b>
+                </li>
+              ))}
+            </ul>
             {wrong.length > 0 && (
               <ul className="wrong-list">
-                {wrong.map((n) => (
-                  <li key={n.id}><b>{n.word}</b><span>{n.reading}</span><small>{shortMeaning(n.meaning)}</small></li>
-                ))}
+                {wrong.map((item) => {
+                  const n = noteOf(item.word);
+                  return <li key={item.type + item.word}><b>{item.word}</b><span>{n?.reading}</span><small>{n ? shortMeaning(n.meaning) : ""}</small></li>;
+                })}
               </ul>
             )}
-            <p className="sheet-note">测验不影响复习安排。</p>
+            <p className="sheet-note">题目是原创练习题，不是历年真题。测验不影响复习安排。</p>
             <div className="sheet-actions">
-              {wrong.length > 0 && (
+              {wrongNotes.length > 0 && (
                 <button
                   className="ghost"
                   disabled={saved}
                   onClick={() => {
-                    props.onStarWrong(wrong.map((n) => n.id));
+                    props.onStarWrong(wrongNotes.map((n) => n.id));
                     setSaved(true);
                   }}
                 >

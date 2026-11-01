@@ -19,6 +19,8 @@ export interface Progress {
   changedAt: Record<string, number>;
   /** Holds changes the cloud copy has not received yet. */
   dirty: boolean;
+  /** Time of the last progress reset, which every device honours when merging. */
+  resetAt: number;
 }
 
 export const emptyProgress = (): Progress => ({
@@ -30,6 +32,7 @@ export const emptyProgress = (): Progress => ({
   log: {},
   changedAt: {},
   dirty: false,
+  resetAt: 0,
 });
 
 const WORD_FIELDS = ["cards", "familiar", "starred", "notes"] as const;
@@ -45,10 +48,30 @@ export function stampChanges(prev: Progress, next: Progress, now = Date.now()): 
   return { ...next, changedAt, dirty: true };
 }
 
+/** Drops what a side held before a reset it has not seen; words changed since then stay. */
+function afterReset(side: Progress, resetAt: number): Progress {
+  if (side.resetAt >= resetAt) return side;
+  const keep = <T,>(entries: Record<string, T>) =>
+    Object.fromEntries(Object.entries(entries).filter(([id]) => (side.changedAt[id] ?? 0) > resetAt));
+  return {
+    ...side,
+    cards: keep(side.cards),
+    familiar: keep(side.familiar),
+    starred: keep(side.starred),
+    notes: keep(side.notes),
+    changedAt: keep(side.changedAt),
+    learned: {},
+    log: {},
+  };
+}
+
 /** Per word the newer side wins, so a deletion on one device beats an older copy on the other. */
-export function mergeProgress(local: Progress, saved: Partial<Progress>): Progress {
-  const remote = { ...emptyProgress(), ...saved };
-  const merged: Progress = { ...local, cards: {}, familiar: {}, starred: {}, notes: {}, changedAt: {} };
+export function mergeProgress(current: Progress, saved: Partial<Progress>): Progress {
+  const stored = { ...emptyProgress(), ...saved };
+  const resetAt = Math.max(current.resetAt, stored.resetAt);
+  const local = afterReset(current, resetAt);
+  const remote = afterReset(stored, resetAt);
+  const merged: Progress = { ...local, cards: {}, familiar: {}, starred: {}, notes: {}, changedAt: {}, resetAt };
   const ids = new Set<string>();
   for (const side of [local, remote]) {
     for (const field of WORD_FIELDS) Object.keys(side[field]).forEach((id) => ids.add(id));
