@@ -10,13 +10,16 @@ import {
   GROUP_SIZE_MIN,
   isDue,
   isUnseen,
+  learnedOn,
   LEECH_LAPSES,
+  LEVELS,
   normalizeProgress,
   recentDays,
   STATUS_LABEL,
   statusOf,
   streak,
   type Group,
+  type Level,
   type Progress,
   type Settings,
   type Status,
@@ -60,11 +63,12 @@ export function TodayPage(props: {
   settings: Settings;
   onStudy: (title: string, ids: string[]) => void;
   onMode: (mode: StudyMode) => void;
+  onLevel: (level: Level) => void;
 }) {
   const { notes, groups, progress, settings } = props;
   const queue = buildQueue(notes, progress, settings);
   const log = progress.log[dayKey()];
-  const learnedToday = progress.learned[dayKey()]?.length ?? 0;
+  const learnedToday = learnedOn(notes, progress);
   const goal = Math.min(100, Math.round((learnedToday / Math.max(1, settings.dailyNew)) * 100));
   const group = currentGroup(groups, progress);
   const ids = [...queue.due, ...queue.fresh].map((n) => n.id);
@@ -104,6 +108,12 @@ export function TodayPage(props: {
           )}
           {group && <li>继续{group.title}：把这个单元没背过的 {groupLeft.length} 词背完，不受每日新词数限制。</li>}
         </ul>
+      </section>
+
+      <section className="panel">
+        <h2>级别</h2>
+        <Segmented label="级别" value={settings.level} options={LEVELS.map((value) => ({ value, label: value }))} onChange={props.onLevel} />
+        <p className="muted">各级别的词表和每日新词分开，复习进度都会保留。</p>
       </section>
 
       <section className="panel">
@@ -393,7 +403,7 @@ export function StatsPage(props: { notes: Note[]; progress: Progress }) {
       <section className="overview">
         <div><b>{streak(progress)}</b><span>连续打卡（天）</span></div>
         <div><b>{Object.keys(progress.log).length}</b><span>累计学习（天）</span></div>
-        <div><b>{Object.keys(progress.cards).length.toLocaleString()}</b><span>已背过的词</span></div>
+        <div><b>{notes.filter((n) => progress.cards[n.id]).length.toLocaleString()}</b><span>已背过的词</span></div>
         <div><b>{retention === null ? "—" : `${retention}%`}</b><span>复习记住率</span></div>
       </section>
       <section className="panel">

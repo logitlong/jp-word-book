@@ -2,6 +2,7 @@ import { clear, createStore, del, get, set, setMany } from "idb-keyval";
 import { PERSONAL } from "./edition";
 
 // Both sites share one origin, so the public one must never open the owner's database.
+// The store keeps the site's first name: renaming it would lose every visitor's saved progress.
 const db = PERSONAL ? undefined : createStore("n1-word-book", "keyval");
 import { createEmptyCard, fsrs, Rating, type Card, type Grade } from "ts-fsrs";
 import type { Note, ParsedDeck } from "./apkg";
@@ -12,7 +13,11 @@ export type { Grade, Progress };
 
 export type StudyMode = "read" | "listen" | "recall";
 
+export const LEVELS = ["N1", "N5"] as const;
+export type Level = (typeof LEVELS)[number];
+
 export interface Settings {
+  level: Level;
   dailyNew: number;
   retention: number;
   autoplay: boolean;
@@ -31,6 +36,7 @@ export const GROUP_SIZE_MAX = 200;
 export const LEECH_LAPSES = 2;
 
 export const defaultSettings: Settings = {
+  level: "N1",
   dailyNew: 20,
   retention: 0.9,
   autoplay: true,
@@ -46,18 +52,20 @@ export const defaultSettings: Settings = {
 /** Bump when parsing changes: older imports are asked to re-import, and progress keeps working by note id. */
 export const DECK_VERSION = 4;
 
-export const loadDeck = async () => ({
-  name: await get<string>("deck-name", db),
-  notes: (await get<number>("deck-version", db)) === DECK_VERSION ? await get<Note[]>("deck-notes", db) : undefined,
+/** N1 keeps the keys it had before levels existed, so devices don't load it again. */
+const deckKey = (key: string, level: Level) => (level === "N1" ? key : `${key}:${level}`);
+
+export const loadDeck = async (level: Level) => ({
+  notes: (await get<number>(deckKey("deck-version", level), db)) === DECK_VERSION ? await get<Note[]>(deckKey("deck-notes", level), db) : undefined,
 });
 
-export async function saveDeck(deck: ParsedDeck) {
+export async function saveDeck(deck: ParsedDeck, level: Level) {
   // Phones may evict site data under storage pressure; this asks the browser to keep it.
   await navigator.storage?.persist?.().catch(() => false);
   await setMany([
-    ["deck-version", DECK_VERSION],
-    ["deck-name", deck.name],
-    ["deck-notes", deck.notes],
+    [deckKey("deck-version", level), DECK_VERSION],
+    [deckKey("deck-name", level), deck.name],
+    [deckKey("deck-notes", level), deck.notes],
     ...[...deck.audio].map(
       ([name, bytes]) => [`audio:${name}`, new Blob([bytes as BlobPart], { type: "audio/mpeg" })] as [string, Blob],
     ),
@@ -162,9 +170,15 @@ export function shuffled<T>(items: T[]) {
 
 export const orderNew = (notes: Note[], s: Settings) => (s.newOrder === "random" ? shuffled(notes) : notes);
 
+/** New words learned that day from this list, so each level has its own daily quota. */
+export function learnedOn(notes: Note[], p: Progress, now = new Date()) {
+  const learned = new Set(p.learned[dayKey(now)]);
+  return notes.filter((n) => learned.has(n.id)).length;
+}
+
 export function buildQueue(notes: Note[], p: Progress, s: Settings, now = new Date()) {
   const due = notes.filter((n) => isDue(n.id, p, now));
-  const left = Math.max(0, s.dailyNew - (p.learned[dayKey(now)]?.length ?? 0));
+  const left = Math.max(0, s.dailyNew - learnedOn(notes, p, now));
   const unseen = notes.filter((n) => isUnseen(n.id, p));
   return { due, fresh: orderNew(unseen, s).slice(0, left), unseen };
 }
@@ -175,7 +189,11 @@ export interface Group {
   notes: Note[];
 }
 
-const unitNumber = (unit: string) => unit.match(/(\d+)$/)?.[1];
+const unitTitle = (unit: string) => {
+  const part = unit.match(/-(\w+)$/)?.[1];
+  if (!part) return unit;
+  return /^\d+$/.test(part) ? `第 ${part} 单元` : `${part} 单元`;
+};
 
 /** Words split by the deck's own units, or into equal runs of the chosen size in book order. */
 export function buildGroups(notes: Note[], s: Settings): Group[] {
@@ -193,10 +211,7 @@ export function buildGroups(notes: Note[], s: Settings): Group[] {
     if (!units.has(unit)) units.set(unit, []);
     units.get(unit)!.push(note);
   }
-  return [...units].map(([unit, list]) => {
-    const number = unitNumber(unit);
-    return { key: unit, title: number ? `第 ${number} 单元` : unit, notes: list };
-  });
+  return [...units].map(([unit, list]) => ({ key: unit, title: unitTitle(unit), notes: list }));
 }
 
 const dayFrom = (now: Date, offset: number) =>

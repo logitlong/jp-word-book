@@ -26,6 +26,7 @@ import {
   statusOf,
   type Grade,
   type Group,
+  type Level,
   type Progress,
   type Settings,
   type Status,
@@ -78,7 +79,7 @@ interface Summary {
   familiar: number;
 }
 
-function Importer({ needsToken, hasDeck, onDone }: { needsToken: boolean; hasDeck: boolean; onDone: (token?: string) => void }) {
+function Importer({ level, needsToken, hasDeck, onDone, onBack }: { level: Level; needsToken: boolean; hasDeck: boolean; onDone: (token?: string) => void; onBack: () => void }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [token, setToken] = useState("");
@@ -93,7 +94,7 @@ function Importer({ needsToken, hasDeck, onDone }: { needsToken: boolean; hasDec
     setBusy("正在解析牌组…");
     setError("");
     try {
-      await saveDeck(await parseApkg(file.name, new Uint8Array(await file.arrayBuffer())));
+      await saveDeck(await parseApkg(file.name, new Uint8Array(await file.arrayBuffer())), level);
       onDone();
     } catch (e) {
       fail(e);
@@ -103,8 +104,8 @@ function Importer({ needsToken, hasDeck, onDone }: { needsToken: boolean; hasDec
     setBusy("正在加载词库…");
     setError("");
     try {
-      const { name, notes } = await downloadNotes();
-      await saveDeck({ name, notes, audio: new Map() });
+      const { name, notes } = await downloadNotes(level);
+      await saveDeck({ name, notes, audio: new Map() }, level);
       onDone();
     } catch (e) {
       fail(e);
@@ -116,8 +117,8 @@ function Importer({ needsToken, hasDeck, onDone }: { needsToken: boolean; hasDec
     try {
       await checkToken(token.trim());
       if (!hasDeck) {
-        const { name, notes } = await downloadNotes();
-        await saveDeck({ name, notes, audio: new Map() });
+        const { name, notes } = await downloadNotes(level);
+        await saveDeck({ name, notes, audio: new Map() }, level);
       }
       await saveToken(token.trim());
       onDone(token.trim());
@@ -166,6 +167,7 @@ function Importer({ needsToken, hasDeck, onDone }: { needsToken: boolean; hasDec
       {error && !needsToken && (
         <>
           <button className="solid" onClick={() => void load()}>重试</button>
+          {level !== "N1" && <button className="ghost" onClick={onBack}>返回 N1</button>}
           {PERSONAL && (
             <label className="ghost file">
               或选择本机 .apkg 文件
@@ -180,7 +182,6 @@ function Importer({ needsToken, hasDeck, onDone }: { needsToken: boolean; hasDec
 
 export default function App() {
   const [ready, setReady] = useState(false);
-  const [deckName, setDeckName] = useState("");
   const [notes, setNotes] = useState<Note[] | null>(null);
   const [progress, setProgress] = useState<Progress>(emptyProgress);
   const [settings, setSettings] = useState<Settings>(defaultSettings);
@@ -202,8 +203,8 @@ export default function App() {
   const syncTimer = useRef<number | undefined>(undefined);
 
   const refresh = async (nextToken?: string) => {
-    const [deck, p, s, savedToken, sha] = await Promise.all([loadDeck(), loadProgress(), loadSettings(), loadToken(), loadSyncSha()]);
-    setDeckName(deck.name ?? "");
+    const s = await loadSettings();
+    const [deck, p, savedToken, sha] = await Promise.all([loadDeck(s.level), loadProgress(), loadToken(), loadSyncSha()]);
     setNotes(deck.notes ?? null);
     setProgress(p);
     progressRef.current = p;
@@ -280,13 +281,28 @@ export default function App() {
     void saveSettings(next);
   };
 
+  const changeLevel = async (level: Level) => {
+    await saveSettings({ ...settings, level });
+    setGroupKey("");
+    setFilter("all");
+    await refresh();
+  };
+
   const groups = useMemo(() => buildGroups(notes ?? [], settings), [notes, settings.groupBy, settings.groupSize]);
   const byId = useMemo(() => new Map((notes ?? []).map((n) => [n.id, n])), [notes]);
 
   if (!ready) return null;
   const needsToken = PERSONAL && !token;
   if (!notes || needsToken) {
-    return <Importer needsToken={needsToken} hasDeck={!!notes} onDone={(value) => void refresh(value)} />;
+    return (
+      <Importer
+        level={settings.level}
+        needsToken={needsToken}
+        hasDeck={!!notes}
+        onDone={(value) => void refresh(value)}
+        onBack={() => void changeLevel("N1")}
+      />
+    );
   }
 
   const startStudy = (title: string, ids: string[]) => {
@@ -387,7 +403,7 @@ export default function App() {
     <div className="page">
       <header className="top-bar">
         <div>
-          <h1>{deckName}</h1>
+          <h1>无敌绿宝书 {settings.level}</h1>
           <p>{notes.length.toLocaleString()} 词{token ? ` · ${syncLabel(sync)}` : ""}</p>
         </div>
         <nav className="tabs" aria-label="页面">
@@ -418,6 +434,7 @@ export default function App() {
           settings={settings}
           onStudy={startStudy}
           onMode={(mode) => changeSettings({ mode })}
+          onLevel={(level) => void changeLevel(level)}
         />
       )}
       {tab === "groups" && (

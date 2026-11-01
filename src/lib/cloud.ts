@@ -1,12 +1,12 @@
 import { strFromU8, strToU8 } from "fflate";
 import type { Note } from "./apkg";
 import type { ExamType } from "./examBank";
-import { DECK_VERSION, loadAudio, loadEntries, loadToken, saveAudio, saveEntries } from "./store";
+import { DECK_VERSION, loadAudio, loadEntries, loadToken, saveAudio, saveEntries, type Level } from "./store";
 import { mergeProgress, type Progress } from "./sync";
 
 const API = "https://api.github.com/repos/logitlong/jp-word-book-data/contents";
 /** The word list, entries and deck audio are public; everything else needs a token. */
-const PUBLIC_DECK = "https://logitlong.github.io/n1-word-book/deck";
+const PUBLIC_DECK = "https://logitlong.github.io/jlpt-words/deck";
 const NEURAL_DIR = "deck/neural";
 /** Bump when entry files change, so devices fetch them again. */
 const ENTRIES_VERSION = 2;
@@ -47,8 +47,9 @@ export async function checkToken(token: string) {
   if (!res.ok) throw new CloudError(res.status, describe(res.status));
 }
 
-export async function downloadNotes() {
-  const res = await fetch(`${PUBLIC_DECK}/notes.json?v=${DECK_VERSION}`).catch(() => {
+export async function downloadNotes(level: Level) {
+  const path = level === "N1" ? "notes.json" : `${level.toLowerCase()}/notes.json`;
+  const res = await fetch(`${PUBLIC_DECK}/${path}?v=${DECK_VERSION}`).catch(() => {
     throw new CloudError(0, "词库没有加载到，请检查网络后重试。");
   });
   if (!res.ok) throw new CloudError(res.status, `词库加载失败（${res.status}）`);
@@ -103,11 +104,12 @@ export interface WordEntry {
 type UnitEntries = Record<string, WordEntry>;
 const unitEntries = new Map<string, Promise<UnitEntries>>();
 
-async function fetchUnitEntries(number: string) {
-  const key = `${ENTRIES_VERSION}:${number}`;
+/** N1 files are `u01`, cached by number since before levels existed; other levels are `n5-a1`. */
+async function fetchUnitEntries(id: string) {
+  const key = `${ENTRIES_VERSION}:${id}`;
   const cached = await loadEntries<UnitEntries>(key);
   if (cached) return cached;
-  const res = await fetch(`${PUBLIC_DECK}/entries/u${number.padStart(2, "0")}.json`);
+  const res = await fetch(`${PUBLIC_DECK}/entries/${/^\d/.test(id) ? `u${id.padStart(2, "0")}` : id}.json`);
   if (!res.ok) return {};
   const list = (await res.json()) as WordEntry[];
   const entries = Object.fromEntries(list.map((entry) => [entry.id, entry]));
@@ -117,16 +119,17 @@ async function fetchUnitEntries(number: string) {
 
 /** Rewritten entries for a deck unit; units without them yet resolve to nothing. */
 export function loadUnitEntries(unit: string) {
-  const number = unit.match(/(\d+)$/)?.[1];
-  if (!number) return Promise.resolve<UnitEntries>({});
-  if (!unitEntries.has(number)) {
-    const pending = fetchUnitEntries(number).catch(() => {
-      unitEntries.delete(number);
+  const [, level, part] = unit.match(/(N\d)-(\w+)$/) ?? [];
+  if (!part) return Promise.resolve<UnitEntries>({});
+  const id = level === "N1" ? part : `${level}-${part}`.toLowerCase();
+  if (!unitEntries.has(id)) {
+    const pending = fetchUnitEntries(id).catch(() => {
+      unitEntries.delete(id);
       return {};
     });
-    unitEntries.set(number, pending);
+    unitEntries.set(id, pending);
   }
-  return unitEntries.get(number)!;
+  return unitEntries.get(id)!;
 }
 
 /** Files over 1MB come back without content from the JSON view, so the sha and the body are separate calls. */
