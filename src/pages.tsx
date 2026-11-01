@@ -68,6 +68,8 @@ export function TodayPage(props: {
   const group = currentGroup(groups, progress);
   const ids = [...queue.due, ...queue.fresh].map((n) => n.id);
   const groupLeft = group?.notes.filter((n) => isUnseen(n.id, progress)) ?? [];
+  const firstNew = queue.fresh[0];
+  const firstGroup = firstNew && groups.find((g) => g.notes.includes(firstNew));
 
   return (
     <>
@@ -92,6 +94,15 @@ export function TodayPage(props: {
             </button>
           )}
         </div>
+        <ul className="today-notes">
+          {ids.length > 0 && (
+            <li>
+              开始学习：先复习到期的 {queue.due.length} 词，再{settings.newOrder === "book" ? "按书本顺序" : "随机"}学 {queue.fresh.length} 个新词
+              {firstNew && settings.newOrder === "book" ? `，从${firstGroup?.title ?? ""}的「${firstNew.word}」开始` : ""}。
+            </li>
+          )}
+          {group && <li>继续{group.title}：把这个单元没背过的 {groupLeft.length} 词背完，不受每日新词数限制。</li>}
+        </ul>
       </section>
 
       <section className="panel">

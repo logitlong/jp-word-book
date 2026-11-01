@@ -7,7 +7,7 @@ import type { QuizResult } from "./lib/sync";
 import { Segmented } from "./pages";
 
 export type QuizMode = "exam" | "words";
-type QuizFilter = "all" | "unseen" | "wrong";
+type QuizFilter = "all" | "unseen" | "done" | "wrong";
 
 interface Question {
   id: string;
@@ -160,7 +160,8 @@ export function Quiz(props: {
   const correct = all.length - unseen.length - missed.length;
   const [filter, setFilter] = useState<QuizFilter>("all");
   const [custom, setCustom] = useState("");
-  const candidates = filter === "unseen" ? unseen : filter === "wrong" ? missed : all;
+  const attempted = all.filter((q) => props.results[q.id]);
+  const candidates = { all, unseen, done: attempted, wrong: missed }[filter];
   const available = candidates.length;
   const customCount = Math.min(available, Math.max(1, Math.floor(Number(custom)) || 0));
   const begin = (count: number) => setQuestions((props.mode === "exam" ? drawExam : drawWords)(candidates, count));
@@ -231,6 +232,7 @@ export function Quiz(props: {
                 options={[
                   { value: "all", label: `全部 ${all.length}` },
                   { value: "unseen", label: `未做 ${unseen.length}` },
+                  { value: "done", label: `已做 ${attempted.length}` },
                   { value: "wrong", label: `错题 ${missed.length}` },
                 ]}
                 onChange={setFilter}
