@@ -216,8 +216,9 @@ export function Quiz(props: {
   });
 
   return (
-    <div className="overlay" onClick={props.onClose}>
-      <section className="sheet" role="dialog" aria-label="测验" onClick={(e) => e.stopPropagation()}>
+    <div className="overlay full">
+      <section className="sheet quiz-sheet" role="dialog" aria-label="测验">
+        <button className="round sheet-close" onClick={props.onClose} aria-label="关闭">✕</button>
         {!questions ? (
           <>
             <p className="sheet-meta">{props.title} · {MODE_LABEL[props.mode]}</p>

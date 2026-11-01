@@ -168,9 +168,18 @@ export function WordCard(props: Props) {
   ];
 
   return (
-    <div className="overlay" onClick={props.onClose}>
-      <section className="word-card" role="dialog" aria-label={note.word} onClick={(e) => e.stopPropagation()}>
-        <div className="card-scroll">
+    // A stray tap must not end a study round, so only browsing closes from outside.
+    <div className="overlay full" onClick={study ? undefined : props.onClose}>
+      <section
+        className="word-card"
+        role="dialog"
+        aria-label={note.word}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (study && !revealed && !(e.target as HTMLElement).closest("button")) setRevealed(true);
+        }}
+      >
+        <div className={`card-scroll${revealed ? "" : " front"}`}>
           <header className="card-top">
             <span className="tag">
               <i />
@@ -294,6 +303,7 @@ export function WordCard(props: Props) {
                 </div>
               )}
               <p className="prompt">{FRONT_HINT[settings.mode]}</p>
+              <p className="tap-hint">点屏幕任意位置看答案</p>
             </>
           )}
         </div>
