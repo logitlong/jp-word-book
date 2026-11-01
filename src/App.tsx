@@ -31,6 +31,7 @@ import {
 } from "./lib/store";
 import { GroupsPage, SettingsPanel, StatsPage, TodayPage, WordsPage, type WordFilter } from "./pages";
 import { Quiz, type QuizMode } from "./Quiz";
+import { Sprint } from "./Sprint";
 import { WordCard } from "./WordCard";
 
 const SYNC_DELAY = 15000;
@@ -165,6 +166,7 @@ export default function App() {
   const [open, setOpen] = useState<Open | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [quiz, setQuiz] = useState<{ group: Group; mode: QuizMode } | null>(null);
+  const [sprint, setSprint] = useState<{ title: string; notes: Note[] } | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [filter, setFilter] = useState<WordFilter>("all");
   const [groupKey, setGroupKey] = useState("");
@@ -401,6 +403,7 @@ export default function App() {
           onSettings={changeSettings}
           onStudy={startStudy}
           onQuiz={(group, mode) => setQuiz({ group, mode })}
+          onSprint={(title, list) => setSprint({ title, notes: list })}
           onBrowse={(group) => {
             setGroupKey(group.key);
             setFilter("all");
@@ -419,6 +422,7 @@ export default function App() {
           onGroup={setGroupKey}
           onOpen={(id, list) => setOpen({ mode: "browse", id, list })}
           onStudy={startStudy}
+          onSprint={(title, list) => setSprint({ title, notes: list })}
           onStar={toggleStar}
           onUnfamiliar={(id) => onStatus(id, progress.cards[id] ? "learning" : "new")}
         />
@@ -464,12 +468,16 @@ export default function App() {
         </div>
       )}
 
+      {sprint && <Sprint title={sprint.title} notes={sprint.notes} onClose={() => setSprint(null)} />}
+
       {quiz && (
         <Quiz
           title={quiz.group.title}
           mode={quiz.mode}
           scope={quiz.group.notes}
           pool={notes}
+          results={progress.quiz}
+          onAnswer={(id, ok) => update((p) => ({ ...p, quiz: { ...p.quiz, [id]: { ok, at: Date.now() } } }))}
           onClose={() => setQuiz(null)}
           onStarWrong={(ids) =>
             update((p) => ({ ...p, starred: { ...p.starred, ...Object.fromEntries(ids.map((id) => [id, true])) } }))

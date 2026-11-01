@@ -1,6 +1,6 @@
-import type { QuizMode } from "./Quiz";
 import { useMemo, useState } from "react";
 import type { Note } from "./lib/apkg";
+import type { QuizMode } from "./Quiz";
 import {
   buildQueue,
   dayKey,
@@ -117,6 +117,7 @@ export function GroupsPage(props: {
   onStudy: (title: string, ids: string[]) => void;
   onQuiz: (group: Group, mode: QuizMode) => void;
   onBrowse: (group: Group) => void;
+  onSprint: (title: string, notes: Note[]) => void;
 }) {
   const { groups, progress, settings } = props;
   const [draft, setDraft] = useState(String(settings.groupSize));
@@ -174,6 +175,12 @@ export function GroupsPage(props: {
         )}
       </section>
 
+      <section className="panel">
+        <h2>学习方式</h2>
+        <Segmented label="学习方式" value={settings.mode} options={MODES} onChange={(mode) => props.onSettings({ mode })} />
+        <p className="muted">{MODES.find((m) => m.value === settings.mode)?.hint}</p>
+      </section>
+
       <ul className="group-list">
         {groups.map((group) => {
           const done = group.notes.filter((n) => !isUnseen(n.id, progress)).length;
@@ -199,6 +206,7 @@ export function GroupsPage(props: {
                 <button className="ghost small" onClick={() => props.onQuiz(group, "exam")}>真题测验</button>
                 <button className="ghost small" onClick={() => props.onQuiz(group, "words")}>单词测验</button>
                 <button className="ghost small" onClick={() => props.onBrowse(group)}>词表</button>
+                <button className="ghost small" onClick={() => props.onSprint(group.title, group.notes)}>速刷</button>
               </div>
             </li>
           );
@@ -242,6 +250,7 @@ export function WordsPage(props: {
   onGroup: (key: string) => void;
   onOpen: (id: string, list: string[]) => void;
   onStudy: (title: string, ids: string[]) => void;
+  onSprint: (title: string, notes: Note[]) => void;
   onStar: (id: string) => void;
   onUnfamiliar: (id: string) => void;
 }) {
@@ -290,6 +299,7 @@ export function WordsPage(props: {
       </div>
       <div className="filters">
         <input type="search" placeholder="搜索单词、假名或中文" value={query} onChange={(e) => setQuery(e.target.value)} />
+        <button className="ghost" disabled={!list.length} onClick={() => props.onSprint("速刷", list)}>速刷 {list.length}</button>
         <select value={groupKey} onChange={(e) => props.onGroup(e.target.value)} aria-label="分组">
           <option value="">全部分组</option>
           {groups.map((g) => <option key={g.key} value={g.key}>{g.title}</option>)}

@@ -224,6 +224,14 @@ kbd { font: 12px var(--sans); padding: 2px 6px; border: 1px solid var(--edge); b
 .example p { margin: 0; color: var(--muted); }
 .example p[lang] { color: var(--ink); font-family: var(--mincho); font-size: 15px; }
 .count-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 10px; margin-top: 20px; }
+.count-custom { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; }
+.count-custom label { display: flex; align-items: center; gap: 8px; }
+.count-custom input { width: 96px; min-height: 42px; padding: 0 10px; border: 1px solid var(--edge); border-radius: 10px; background: var(--paper); }
+.sprint { position: fixed; inset: 0; z-index: 15; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; background: var(--page); cursor: pointer; user-select: none; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+.sprint header { position: absolute; top: 16px; right: 16px; left: 16px; display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 14px; }
+.sprint-word { margin: 0; font-family: var(--mincho); font-size: clamp(48px, 12vw, 96px); line-height: 1.3; text-align: center; overflow-wrap: anywhere; }
+.sprint-hint { position: absolute; bottom: 32px; color: var(--muted); font-size: 13px; }
+.sprint-end { display: grid; gap: 12px; text-align: center; font-size: 18px; }
 .quiz-finish { display: block; margin: 14px auto 0; color: var(--muted); font-size: 13px; }
 .top-actions { display: flex; flex: none; gap: 8px; }
 .quiz-next { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 18px; color: var(--ink-2); }

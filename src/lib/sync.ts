@@ -6,6 +6,11 @@ export interface DayLog {
   again: number;
 }
 
+export interface QuizResult {
+  ok: boolean;
+  at: number;
+}
+
 export interface Progress {
   cards: Record<string, Card>;
   /** Words the learner already knows: never scheduled, listed on their own. */
@@ -15,6 +20,8 @@ export interface Progress {
   /** Day key -> ids first learned that day, so the daily limit survives reloads. */
   learned: Record<string, string[]>;
   log: Record<string, DayLog>;
+  /** Quiz question id -> latest result; a wrong answer stays a wrong question until answered right. */
+  quiz: Record<string, QuizResult>;
   /** Word id -> time of its last local change, which decides the winner when devices merge. */
   changedAt: Record<string, number>;
   /** Holds changes the cloud copy has not received yet. */
@@ -30,6 +37,7 @@ export const emptyProgress = (): Progress => ({
   notes: {},
   learned: {},
   log: {},
+  quiz: {},
   changedAt: {},
   dirty: false,
   resetAt: 0,
@@ -62,6 +70,7 @@ function afterReset(side: Progress, resetAt: number): Progress {
     changedAt: keep(side.changedAt),
     learned: {},
     log: {},
+    quiz: Object.fromEntries(Object.entries(side.quiz).filter(([, result]) => result.at > resetAt)),
   };
 }
 
@@ -101,6 +110,10 @@ export function mergeProgress(current: Progress, saved: Partial<Progress>): Prog
     merged.log[day] = other
       ? { new: Math.max(log.new, other.new), review: Math.max(log.review, other.review), again: Math.max(log.again, other.again) }
       : log;
+  }
+  merged.quiz = { ...remote.quiz };
+  for (const [id, result] of Object.entries(local.quiz)) {
+    if (result.at >= (merged.quiz[id]?.at ?? 0)) merged.quiz[id] = result;
   }
   return merged;
 }
