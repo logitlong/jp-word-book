@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Note } from "./lib/apkg";
-import { loadNeuralAudio, loadUnitEntries, loadWordAudio, type WordEntry } from "./lib/cloud";
+import { loadExampleAudio, loadNeuralAudio, loadUnitEntries, loadWordAudio, type WordEntry } from "./lib/cloud";
 import { accentType, circled, isDrawable, pitchPattern } from "./lib/pitch";
 import {
   formatInterval,
@@ -86,25 +86,37 @@ export function WordCard(props: Props) {
     setPlaying(false);
   }, []);
 
-  const play = useCallback(async () => {
-    stop();
-    setMissing(false);
-    const request = ++playRequest.current;
-    const blob = settings.voice === 2 ? await loadNeuralAudio(note.id) : note.audio ? await loadWordAudio(note.audio) : undefined;
-    // The word may have changed while its audio was downloading.
-    if (request !== playRequest.current) return;
-    if (!blob) {
-      setMissing(true);
-      return;
-    }
-    URL.revokeObjectURL(urlRef.current);
-    urlRef.current = URL.createObjectURL(blob);
-    const audio = new Audio(urlRef.current);
-    audio.onended = () => setPlaying(false);
-    audioRef.current = audio;
-    setPlaying(true);
-    await audio.play().catch(() => setPlaying(false));
-  }, [note, settings.voice, stop]);
+  const playFrom = useCallback(
+    async (load: () => Promise<Blob | undefined>) => {
+      stop();
+      setMissing(false);
+      const request = ++playRequest.current;
+      const blob = await load();
+      // The word may have changed while its audio was downloading.
+      if (request !== playRequest.current) return;
+      if (!blob) {
+        setMissing(true);
+        return;
+      }
+      URL.revokeObjectURL(urlRef.current);
+      urlRef.current = URL.createObjectURL(blob);
+      const audio = new Audio(urlRef.current);
+      audio.onended = () => setPlaying(false);
+      audioRef.current = audio;
+      setPlaying(true);
+      await audio.play().catch(() => setPlaying(false));
+    },
+    [stop],
+  );
+
+  const play = useCallback(
+    () =>
+      playFrom(async () => {
+        if (settings.voice === 2) return loadNeuralAudio(note.id);
+        return note.audio ? loadWordAudio(note.audio) : undefined;
+      }),
+    [note, settings.voice, playFrom],
+  );
 
   useEffect(() => stop, [note.id, stop]);
 
@@ -257,8 +269,17 @@ export function WordCard(props: Props) {
                         <p className="sense-ja">{sense.ja}</p>
                         {sense.examples.map((example, j) => (
                           <div className="example" key={j}>
-                            <p lang="ja">{example.ja}</p>
-                            <p>{example.zh}</p>
+                            <button
+                              className="example-play"
+                              aria-label="听例句"
+                              onClick={() => void playFrom(() => loadExampleAudio(`${note.id}-${i}-${j}`))}
+                            >
+                              ▶
+                            </button>
+                            <div>
+                              <p lang="ja">{example.ja}</p>
+                              <p>{example.zh}</p>
+                            </div>
                           </div>
                         ))}
                       </li>

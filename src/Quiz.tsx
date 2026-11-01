@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState, type CSSProperties } from "react";
 import type { Note } from "./lib/apkg";
-import { loadUnitEntries } from "./lib/cloud";
-import { EXAM_BANK, EXAM_SECTIONS, type ExamItem } from "./lib/examBank";
+import { loadUnitEntries, type WordEntry } from "./lib/cloud";
+import { EXAM_SECTIONS, type ExamItem } from "./lib/examBank";
 import { shuffled } from "./lib/store";
 import type { QuizResult } from "./lib/sync";
 import { Segmented } from "./pages";
@@ -83,13 +83,14 @@ const closeness = (note: Note, other: Note) =>
 type Face = "word" | "reading" | "meaning";
 
 const FACE_LABEL: Record<Face, string> = { word: "汉字", reading: "读音", meaning: "释义" };
-const faceOf = (note: Note, face: Face) =>
-  face === "meaning" ? shortMeaning(note.meaning) : face === "reading" && hasKanji(note) ? note.reading : note.word;
+type Meaning = (note: Note) => string;
+const faceOf = (note: Note, face: Face, meaning: Meaning) =>
+  face === "meaning" ? meaning(note) : face === "reading" && hasKanji(note) ? note.reading : note.word;
 const hasKanji = (note: Note) => /[\u4e00-\u9fff]/.test(note.word);
 
-function faceQuestion(note: Note, from: Face, to: Face, pool: Note[]): Question {
-  const answer = faceOf(note, to);
-  const stem = faceOf(note, from);
+function faceQuestion(note: Note, from: Face, to: Face, pool: Note[], meaning: Meaning): Question {
+  const answer = faceOf(note, to, meaning);
+  const stem = faceOf(note, from, meaning);
   return {
     id: `w:${note.id}:${from}:${to}`,
     section: `看${FACE_LABEL[from]}选${FACE_LABEL[to]}`,
@@ -101,18 +102,21 @@ function faceQuestion(note: Note, from: Face, to: Face, pool: Note[]): Question 
     makeOptions: () => {
       // Words sharing the prompt would make a second correct answer.
       const ranked = shuffled(pool)
-        .filter((other) => faceOf(other, to) !== answer && faceOf(other, from) !== stem && faceOf(other, to))
+        .filter(
+          (other) =>
+            faceOf(other, to, meaning) !== answer && faceOf(other, from, meaning) !== stem && faceOf(other, to, meaning),
+        )
         .sort((a, b) => closeness(note, b) - closeness(note, a));
-      return shuffled([answer, ...[...new Set(ranked.map((other) => faceOf(other, to)))].slice(0, 3)]);
+      return shuffled([answer, ...[...new Set(ranked.map((other) => faceOf(other, to, meaning)))].slice(0, 3)]);
     },
   };
 }
 
 /** Every way of asking every word. */
-const wordQuestions = (scope: Note[], pool: Note[]) =>
+const wordQuestions = (scope: Note[], pool: Note[], meaning: Meaning) =>
   scope.flatMap((note) => {
     const faces: Face[] = hasKanji(note) ? ["word", "reading", "meaning"] : ["reading", "meaning"];
-    return faces.flatMap((from) => faces.filter((to) => to !== from).map((to) => faceQuestion(note, from, to, pool)));
+    return faces.flatMap((from) => faces.filter((to) => to !== from).map((to) => faceQuestion(note, from, to, pool, meaning)));
   });
 
 function Stem({ text }: { text: string }) {
@@ -141,27 +145,36 @@ export function Quiz(props: {
   onFontScale: (scale: number) => void;
 }) {
   const [questions, setQuestions] = useState<Question[] | null>(null);
-  const [examItems, setExamItems] = useState<ExamItem[] | null>(null);
+  const [entries, setEntries] = useState<WordEntry[] | null>(null);
 
   useEffect(() => {
-    if (props.mode !== "exam") return;
     let current = true;
     void Promise.all([...new Set(props.scope.map((n) => n.unit))].map(loadUnitEntries)).then((units) => {
-      if (!current) return;
-      const entries = units.flatMap((unit) => Object.values(unit));
-      const ids = new Set(props.scope.map((n) => n.id));
-      const items = entries.filter((e) => ids.has(e.id)).flatMap((e) => e.exams.map((q) => ({ ...q, word: e.word })));
-      setExamItems(items.length ? items : EXAM_BANK);
+      if (current) setEntries(units.flatMap((unit) => Object.values(unit)));
     });
     return () => {
       current = false;
     };
-  }, [props.mode, props.scope]);
+  }, [props.scope]);
 
-  const all = useMemo(
-    () => (props.mode === "exam" ? examQuestions(examItems ?? []) : wordQuestions(props.scope, props.pool)),
-    [props.mode, props.scope, props.pool, examItems],
+  const meanings = useMemo(
+    () => new Map((entries ?? []).map((e) => [e.id, e.senses.slice(0, 2).map((s) => s.zh).join("；")])),
+    [entries],
   );
+  const meaning = useMemo<Meaning>(() => (n) => meanings.get(n.id) ?? shortMeaning(n.meaning), [meanings]);
+  const all = useMemo(() => {
+    if (!entries) return [];
+    if (props.mode === "words") {
+      // Loaded entries only, so full definitions never sit beside cut-off ones as options.
+      const pool = meanings.size ? props.pool.filter((n) => meanings.has(n.id)) : props.pool;
+      return wordQuestions(props.scope, pool, meaning);
+    }
+    const ids = new Set(props.scope.map((n) => n.id));
+    const items: ExamItem[] = entries
+      .filter((e) => ids.has(e.id))
+      .flatMap((e) => e.exams.map((q) => ({ ...q, word: e.word })));
+    return examQuestions(items);
+  }, [props.mode, props.scope, props.pool, entries, meanings, meaning]);
   const unseen = all.filter((q) => !props.results[q.id]);
   const missed = all.filter((q) => props.results[q.id]?.ok === false);
   const correct = all.length - unseen.length - missed.length;
@@ -253,7 +266,7 @@ export function Quiz(props: {
             <p className="sheet-meta">{props.title} · {MODE_LABEL[props.mode]}</p>
             <h2 className="sheet-title">这次测验多少题？</h2>
             <p className="exam-rule">
-              {all.length ? `共 ${all.length} 题：未做 ${unseen.length}，做对 ${correct}，错题 ${missed.length}` : "正在准备题目…"}
+              {all.length ? `共 ${all.length} 题：未做 ${unseen.length}，做对 ${correct}，错题 ${missed.length}` : entries ? "题目没有加载到，请联网并确认已连接私有仓库。" : "正在准备题目…"}
             </p>
             {all.length > 0 && (
               <Segmented
@@ -320,7 +333,7 @@ export function Quiz(props: {
             </div>
             {picked !== null && (
               <div className="quiz-next">
-                <span>{question.word}{note ? ` ${note.reading} · ${shortMeaning(note.meaning)}` : ""}</span>
+                <span>{question.word}{note ? ` ${note.reading} · ${meaning(note)}` : ""}</span>
                 <button className="solid" onClick={next}>{index + 1 === questions?.length ? "看结果" : "下一题"}</button>
               </div>
             )}
@@ -345,7 +358,7 @@ export function Quiz(props: {
               <ul className="wrong-list">
                 {wrong.map((item) => {
                   const n = noteOf(item.word);
-                  return <li key={item.section + item.word}><b>{item.word}</b><span>{n?.reading}</span><small>{n ? shortMeaning(n.meaning) : ""}</small></li>;
+                  return <li key={item.section + item.word}><b>{item.word}</b><span>{n?.reading}</span><small>{n ? meaning(n) : ""}</small></li>;
                 })}
               </ul>
             )}

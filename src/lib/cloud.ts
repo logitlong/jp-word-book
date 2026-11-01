@@ -8,9 +8,10 @@ const API = "https://api.github.com/repos/weilong-lab/jp-word-book-data/contents
 const NOTES_FILE = "deck/notes.json";
 const AUDIO_DIR = "deck/audio";
 const NEURAL_DIR = "deck/neural";
+const EXAMPLES_DIR = "deck/examples";
 const ENTRIES_DIR = "deck/entries";
 /** Bump when entry files change, so devices fetch them again. */
-const ENTRIES_VERSION = 1;
+const ENTRIES_VERSION = 2;
 const PROGRESS_FILE = "progress.json";
 
 export class CloudError extends Error {
@@ -53,6 +54,9 @@ export const loadWordAudio = (name: string) => fetchAudio(name, `${AUDIO_DIR}/${
 
 /** The generated neural reading of a word, stored by note id. */
 export const loadNeuralAudio = (id: string) => fetchAudio(`neural:${id}`, `${NEURAL_DIR}/${id}.mp3`);
+
+/** Example sentences are stored as `<note id>-<sense>-<example>`. */
+export const loadExampleAudio = (name: string) => fetchAudio(`example:${name}`, `${EXAMPLES_DIR}/${name}.mp3`);
 
 async function fetchAudio(key: string, path: string) {
   const cached = await loadAudio(key);

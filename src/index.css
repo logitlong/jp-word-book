@@ -231,7 +231,8 @@ kbd { font: 12px var(--sans); padding: 2px 6px; border: 1px solid var(--edge); b
 .sense-zh { margin: 0; font-size: 17px; line-height: 1.6; }
 .sense-zh .pos { display: inline; margin-right: 8px; color: var(--muted); font-size: 13px; }
 .sense-ja { margin: 6px 0 0; color: var(--ink-2); font-family: var(--mincho); font-size: 15px; line-height: 1.7; }
-.example { margin-top: 10px; padding-left: 14px; border-left: 2px solid var(--edge); font-size: 14px; line-height: 1.7; }
+.example { display: flex; align-items: flex-start; gap: 10px; margin-top: 10px; padding-left: 12px; border-left: 2px solid var(--edge); font-size: 14px; line-height: 1.7; }
+.example-play { flex: none; display: grid; place-items: center; width: 30px; height: 30px; margin-top: 1px; border-radius: 50%; background: var(--green-soft); color: var(--green); font-size: 10px; }
 .example p { margin: 0; color: var(--muted); }
 .example p[lang] { color: var(--ink); font-family: var(--mincho); font-size: 15px; }
 .sheet .segmented { align-self: flex-start; margin-top: 18px; }
