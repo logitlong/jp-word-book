@@ -4,9 +4,9 @@ import type { ExamType } from "./examBank";
 import { loadAudio, loadEntries, loadToken, saveAudio, saveEntries } from "./store";
 import { mergeProgress, type Progress } from "./sync";
 
-const API = "https://api.github.com/repos/weilong-lab/jp-word-book-data/contents";
+const API = "https://api.github.com/repos/logitlong/jp-word-book-data/contents";
 /** The word list, entries and deck audio are public; everything else needs a token. */
-const PUBLIC_DECK = "https://weilong-lab.github.io/n1-word-book/deck";
+const PUBLIC_DECK = "https://logitlong.github.io/n1-word-book/deck";
 const NEURAL_DIR = "deck/neural";
 /** Bump when entry files change, so devices fetch them again. */
 const ENTRIES_VERSION = 2;

@@ -4,7 +4,7 @@ set -e
 cd "${0:A:h}/.."
 npm run build:public
 work=$(mktemp -d)
-git clone -q --depth 1 --filter=blob:none --sparse https://github.com/weilong-lab/n1-word-book.git "$work"
+git clone -q --depth 1 --filter=blob:none --sparse https://github.com/logitlong/n1-word-book.git "$work"
 git -C "$work" sparse-checkout set --no-cone '/*' '!/deck/'
 rm -rf "$work/assets"
 cp -R dist-public/ "$work/"
