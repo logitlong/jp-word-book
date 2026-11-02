@@ -404,3 +404,12 @@ select { padding-right: 34px !important; background-image: linear-gradient(45deg
 @media (hover: none) {
   .shortcut { display: none; }
 }
+
+/* Fullscreen is a computer feature: touch devices and narrow windows never show the button. */
+@media (hover: none), (max-width: 899px) {
+  .fullscreen-toggle { display: none; }
+}
+
+:root:fullscreen .page { max-width: none; }
+:root:fullscreen .overlay.full { padding: 0; place-items: stretch; background: var(--paper); backdrop-filter: none; }
+:root:fullscreen .word-card { width: 100%; height: 100vh; height: 100dvh; max-height: none; border: 0; border-radius: 0; }

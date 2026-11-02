@@ -35,7 +35,7 @@ import {
 import { GroupsPage, SettingsPanel, StatsPage, TodayPage, WordsPage, type WordFilter } from "./pages";
 import { Quiz, type QuizMode } from "./Quiz";
 import { Sprint } from "./Sprint";
-import { WordCard } from "./WordCard";
+import { FullscreenButton, WordCard } from "./WordCard";
 
 const SYNC_DELAY = 15000;
 export const TOKEN_URL = "https://github.com/settings/personal-access-tokens/new";
@@ -276,6 +276,16 @@ export default function App() {
     else document.documentElement.dataset.theme = settings.theme;
   }, [settings.theme]);
 
+  const [fullscreen, setFullscreen] = useState(false);
+  useEffect(() => {
+    const onChange = () => setFullscreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onChange);
+    return () => document.removeEventListener("fullscreenchange", onChange);
+  }, []);
+  const toggleFullscreen = () => {
+    void (document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen()).catch(() => undefined);
+  };
+
   const changeSettings = (patch: Partial<Settings>) => {
     const next = { ...settings, ...patch };
     setSettings(next);
@@ -415,6 +425,7 @@ export default function App() {
           ))}
         </nav>
         <div className="top-actions">
+          <FullscreenButton active={fullscreen} onClick={toggleFullscreen} />
           <button
             className="round"
             aria-label={dark ? "切换到浅色模式" : "切换到深色模式"}
@@ -492,6 +503,8 @@ export default function App() {
           onNote={(text) => update((p) => ({ ...p, notes: { ...p.notes, [openNote.id]: text } }))}
           onVoice={(voice) => changeSettings({ voice })}
           onCardScale={(cardScale) => changeSettings({ cardScale })}
+          fullscreen={fullscreen}
+          onFullscreen={toggleFullscreen}
           onSettings={() => setShowSettings(true)}
           onStar={() => toggleStar(openNote.id)}
           onFamiliar={() => session && onFamiliar(session, openNote.id)}
