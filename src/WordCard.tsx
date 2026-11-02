@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import type { Note } from "./lib/apkg";
 import { loadExampleAudio, loadNeuralAudio, loadUnitEntries, loadWordAudio, type WordEntry } from "./lib/cloud";
 import { accentType, circled, isDrawable, pitchPattern } from "./lib/pitch";
@@ -12,6 +12,7 @@ import {
   type Settings,
   type Status,
 } from "./lib/store";
+import { FontStepper } from "./Quiz";
 
 const GRADES: { rating: Grade; label: string; key: string }[] = [
   { rating: Rating.Again, label: "不认识", key: "D" },
@@ -57,6 +58,7 @@ interface Props {
   onStatus: (status: Status) => void;
   onNote: (text: string) => void;
   onVoice: (voice: 1 | 2) => void;
+  onCardScale: (scale: number) => void;
   onSettings: () => void;
   onStar: () => void;
   onFamiliar: () => void;
@@ -200,6 +202,7 @@ export function WordCard(props: Props) {
               {tag}
             </span>
             <div className="card-actions">
+              {revealed && <FontStepper label="释义和例句字号" scale={settings.cardScale} onChange={props.onCardScale} />}
               {study && props.canUndo && (
                 <button className="chip" onClick={props.onUndo} title="撤销上一步（Z）">撤销 <kbd>Z</kbd></button>
               )}
@@ -269,7 +272,7 @@ export function WordCard(props: Props) {
                 <p className="blank-hint">点击任意空白处，可再听发音</p>
               </div>
 
-              <div className="card-detail">
+              <div className="card-detail" style={{ "--card-scale": settings.cardScale } as CSSProperties}>
                 {entry ? (
                   <ol className={`senses${entry.senses.length > 2 ? " many" : ""}`}>
                     {entry.senses.map((sense, i) => (

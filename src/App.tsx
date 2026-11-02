@@ -491,6 +491,7 @@ export default function App() {
           onStatus={(s) => onStatus(openNote.id, s)}
           onNote={(text) => update((p) => ({ ...p, notes: { ...p.notes, [openNote.id]: text } }))}
           onVoice={(voice) => changeSettings({ voice })}
+          onCardScale={(cardScale) => changeSettings({ cardScale })}
           onSettings={() => setShowSettings(true)}
           onStar={() => toggleStar(openNote.id)}
           onFamiliar={() => session && onFamiliar(session, openNote.id)}

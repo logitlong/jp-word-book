@@ -119,6 +119,20 @@ const wordQuestions = (scope: Note[], pool: Note[], meaning: Meaning) =>
     return faces.flatMap((from) => faces.filter((to) => to !== from).map((to) => faceQuestion(note, from, to, pool, meaning)));
   });
 
+export function FontStepper(props: { label: string; scale: number; onChange: (scale: number) => void }) {
+  return (
+    <div className="font-stepper" role="group" aria-label={props.label}>
+      <button aria-label="缩小字号" disabled={props.scale <= SCALE_MIN} onClick={() => props.onChange(stepScale(props.scale, -1))}>
+        A−
+      </button>
+      <span>{Math.round(props.scale * 100)}%</span>
+      <button aria-label="放大字号" disabled={props.scale >= SCALE_MAX} onClick={() => props.onChange(stepScale(props.scale, 1))}>
+        A+
+      </button>
+    </div>
+  );
+}
+
 function Stem({ text }: { text: string }) {
   return (
     <>
@@ -243,23 +257,7 @@ export function Quiz(props: {
         aria-label="测验"
         style={{ "--quiz-scale": props.fontScale } as CSSProperties}
       >
-        <div className="font-stepper" role="group" aria-label="题目字号">
-          <button
-            aria-label="缩小字号"
-            disabled={props.fontScale <= SCALE_MIN}
-            onClick={() => props.onFontScale(stepScale(props.fontScale, -1))}
-          >
-            A−
-          </button>
-          <span>{Math.round(props.fontScale * 100)}%</span>
-          <button
-            aria-label="放大字号"
-            disabled={props.fontScale >= SCALE_MAX}
-            onClick={() => props.onFontScale(stepScale(props.fontScale, 1))}
-          >
-            A+
-          </button>
-        </div>
+        <FontStepper label="题目字号" scale={props.fontScale} onChange={props.onFontScale} />
         <button className="round sheet-close" onClick={props.onClose} aria-label="关闭">✕</button>
         {!questions ? (
           <>

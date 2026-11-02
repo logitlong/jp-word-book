@@ -186,7 +186,7 @@ kbd { font: 12px var(--sans); padding: 2px 6px; border: 1px solid var(--edge); b
 
 .sittings { margin: 8px 0 0; color: var(--green); font-size: 14px; }
 .pos { margin-top: 24px; color: var(--muted); font-size: 15px; }
-.meaning { margin-top: 10px; font-size: 22px; line-height: 1.75; }
+.meaning { margin-top: 10px; font-size: calc(22px * var(--card-scale, 1)); line-height: 1.75; }
 .prompt { margin-top: 28px; color: var(--muted); font-size: 18px; }
 .tap-hint, .blank-hint { display: none; }
 .local-note { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--edge); }
@@ -211,6 +211,7 @@ kbd { font: 12px var(--sans); padding: 2px 6px; border: 1px solid var(--edge); b
 .font-stepper button { width: 44px; height: 44px; border-radius: 50%; color: var(--ink-2); font-size: 14px; font-weight: 600; }
 .font-stepper button:disabled { opacity: .35; }
 .font-stepper span { min-width: 40px; color: var(--muted); font-size: 12px; text-align: center; }
+.card-actions .font-stepper { position: static; }
 .sheet-close { position: absolute; top: 20px; right: 20px; }
 .quiz-sheet > .sheet-meta { display: flex; align-items: center; min-height: 44px; padding-right: 196px; }
 .sheet-meta { color: var(--muted); font-size: 14px; }
@@ -230,13 +231,13 @@ kbd { font: 12px var(--sans); padding: 2px 6px; border: 1px solid var(--edge); b
 .exam-score { display: grid; gap: 10px; margin: 20px 0 0; padding: 0; list-style: none; }
 .exam-score li { display: flex; justify-content: space-between; gap: 12px; color: var(--ink-2); }
 .senses { display: grid; gap: 22px; margin: 28px 0 0; padding: 0; list-style: none; }
-.sense-zh { margin: 0; font-size: 17px; line-height: 1.6; }
-.sense-zh .pos { display: inline; margin-right: 8px; color: var(--muted); font-size: 13px; }
-.sense-ja { margin: 6px 0 0; color: var(--ink-2); font-family: var(--mincho); font-size: 15px; line-height: 1.7; }
-.example { display: flex; align-items: flex-start; gap: 10px; margin-top: 10px; padding-left: 12px; border-left: 2px solid var(--edge); font-size: 14px; line-height: 1.7; }
+.sense-zh { margin: 0; font-size: calc(17px * var(--card-scale, 1)); line-height: 1.6; }
+.sense-zh .pos { display: inline; margin-right: 8px; color: var(--muted); font-size: calc(13px * var(--card-scale, 1)); }
+.sense-ja { margin: 6px 0 0; color: var(--ink-2); font-family: var(--mincho); font-size: calc(15px * var(--card-scale, 1)); line-height: 1.7; }
+.example { display: flex; align-items: flex-start; gap: 10px; margin-top: 10px; padding-left: 12px; border-left: 2px solid var(--edge); font-size: calc(14px * var(--card-scale, 1)); line-height: 1.7; }
 .example-play { flex: none; display: grid; place-items: center; width: 30px; height: 30px; margin-top: 1px; border-radius: 50%; background: var(--green-soft); color: var(--green); font-size: 10px; }
 .example p { margin: 0; color: var(--muted); }
-.example p[lang] { color: var(--ink); font-family: var(--mincho); font-size: 15px; }
+.example p[lang] { color: var(--ink); font-family: var(--mincho); font-size: calc(15px * var(--card-scale, 1)); }
 .sheet .segmented { align-self: flex-start; margin-top: 18px; }
 .sheet .segmented button { padding: 0 14px; }
 .count-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 10px; margin-top: 24px; }
@@ -306,7 +307,7 @@ select { padding-right: 34px !important; background-image: linear-gradient(45deg
   .overlay { padding: 8px; }
   .word-card { max-height: calc(100vh - 16px); max-height: calc(100dvh - 16px); border-width: 4px; border-radius: 24px; }
   .headword { font-size: 48px; }
-  .meaning { font-size: 18px; }
+  .meaning { font-size: calc(18px * var(--card-scale, 1)); }
   .listen { min-height: 52px; font-size: 16px; }
   .grades { gap: 6px; }
   .sheet { padding: 26px 22px; }
@@ -333,6 +334,7 @@ select { padding-right: 34px !important; background-image: linear-gradient(45deg
   .card-scroll { display: flex; flex-direction: column; padding: calc(16px + env(safe-area-inset-top)) 20px 18px; overscroll-behavior: contain; }
   .card-scroll > * { flex-shrink: 0; }
   .card-actions { margin-left: auto; }
+  .card-actions .font-stepper { display: none; }
   .card-scroll.front { text-align: center; }
   .card-scroll.front .headword { margin-top: auto; }
   .card-scroll.front .listen-row { justify-content: center; }

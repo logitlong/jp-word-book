@@ -32,6 +32,8 @@ export interface Settings {
   theme: "system" | "light" | "dark";
   /** Quiz text size on this device, as a multiple of the default. */
   quizScale: number;
+  /** Word card definitions and examples, same idea as quizScale. */
+  cardScale: number;
 }
 
 export const GROUP_SIZE_MIN = 10;
@@ -50,6 +52,7 @@ export const defaultSettings: Settings = {
   groupSize: 50,
   theme: "system",
   quizScale: 1,
+  cardScale: 1,
 };
 
 /** Bump when parsing changes: older imports are asked to re-import, and progress keeps working by note id. */
