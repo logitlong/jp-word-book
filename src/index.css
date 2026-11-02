@@ -410,6 +410,27 @@ select { padding-right: 34px !important; background-image: linear-gradient(45deg
   .fullscreen-toggle { display: none; }
 }
 
-:root:fullscreen .page { max-width: none; }
+:root:fullscreen .page { max-width: 1280px; }
 :root:fullscreen .overlay.full { padding: 0; place-items: stretch; background: var(--paper); backdrop-filter: none; }
 :root:fullscreen .word-card { width: 100%; height: 100vh; height: 100dvh; max-height: none; border: 0; border-radius: 0; }
+
+/* Fullscreen is for studying: the card's content sits in the middle of the screen and grows with it. */
+:root:fullscreen .card-scroll { display: flex; flex-direction: column; padding: 24px 40px; }
+:root:fullscreen .card-scroll > * { flex-shrink: 0; }
+:root:fullscreen .card-body { width: min(1160px, 100%); margin: auto; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); }
+:root:fullscreen .card-scroll.front { text-align: center; }
+:root:fullscreen .card-scroll.front .headword { margin-top: auto; font-size: clamp(96px, 11vw, 200px); }
+:root:fullscreen .card-scroll.front .meaning { font-size: clamp(28px, 2.6vw, 44px); }
+:root:fullscreen .card-scroll.front .listen-row { justify-content: center; }
+:root:fullscreen .card-scroll.front .prompt { margin-top: 24px; margin-bottom: auto; font-size: 18px; }
+:root:fullscreen .overlay:has(.quiz-sheet) { padding: 0; place-items: stretch; background: var(--paper); backdrop-filter: none; }
+:root:fullscreen .quiz-sheet { --quiz-base: 1.35; width: 100%; height: 100vh; height: 100dvh; max-height: none; padding: 24px max(40px, calc(50% - 520px)); border-radius: 0; }
+:root:fullscreen .quiz-sheet:has(.exam-stem) :is(.sheet-meta, .exam-rule, .exam-stem) { justify-content: center; padding-right: 0; text-align: center; }
+:root:fullscreen .quiz-sheet::before, :root:fullscreen .quiz-sheet::after { content: ""; margin: auto; }
+@media (min-width: 1600px) {
+  :root:fullscreen .quiz-sheet { --quiz-base: 1.6; }
+  :root:fullscreen .card-body { zoom: 1.25; }
+}
+@media (min-width: 2200px) {
+  :root:fullscreen .card-body { zoom: 1.5; }
+}
