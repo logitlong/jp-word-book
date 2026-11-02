@@ -113,7 +113,7 @@ export function TodayPage(props: {
       <section className="panel">
         <h2>级别</h2>
         <Segmented label="级别" value={settings.level} options={LEVELS.map((value) => ({ value, label: value }))} onChange={props.onLevel} />
-        <p className="muted">各级别的词表和每日新词分开，复习进度都会保留。</p>
+        <p className="muted">各级别的词表和每日新词分开，复习进度都会保留。{PERSONAL ? "N1 真题里和绿宝书相同的词共用同一份进度。" : ""}</p>
       </section>
 
       <section className="panel">
@@ -225,7 +225,7 @@ export function GroupsPage(props: {
                 <button className="ghost small" disabled={!due.length} onClick={() => props.onStudy(`${group.title}复习`, due.map((n) => n.id))}>
                   复习 {due.length}
                 </button>
-                <button className="ghost small" onClick={() => props.onQuiz(group, "exam")}>真题测验</button>
+                {settings.level !== "N1 真题" && <button className="ghost small" onClick={() => props.onQuiz(group, "exam")}>真题测验</button>}
                 <button className="ghost small" onClick={() => props.onQuiz(group, "words")}>单词测验</button>
                 <button className="ghost small" onClick={() => props.onBrowse(group)}>词表</button>
                 <button className="ghost small" onClick={() => props.onSprint(group.title, group.notes)}>速刷</button>

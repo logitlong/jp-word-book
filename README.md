@@ -1,11 +1,11 @@
 # 背单词
 
-无敌绿宝书背词网页，目前有 N1 和 N5，有两个站点：
+无敌绿宝书背词网页，目前有 N1 和 N5，私人版另有 N1 真题，有两个站点：
 
 - 公开版 https://logitlong.github.io/jlpt-words/ ：打开就能用，进度保存在本机，可导出和恢复。
 - 私人版 https://logitlong.github.io/jp-word-book/ ：必须填访问令牌，进度同步到私有仓库，并有神经语音。
 
-词表、词条、牌组音频和例句音频来自公开仓库 [jlpt-words](https://github.com/logitlong/jlpt-words)，第一次使用时加载，并留在设备上。
+词表、词条、牌组音频和例句音频来自公开仓库 [jlpt-words](https://github.com/logitlong/jlpt-words)，第一次使用时加载，并留在设备上。N1 真题的词表是老师的讲义，只放在私有仓库的 `deck/exam-words`。
 
 ```bash
 npm install

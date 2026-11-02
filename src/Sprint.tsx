@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import type { Note } from "./lib/apkg";
-import { loadWordAudio } from "./lib/cloud";
+import { loadNeuralAudio, loadWordAudio } from "./lib/cloud";
+
+/** Exam words outside the deck only have the neural reading. */
+const loadSound = (note: Note) => (note.audio ? loadWordAudio(note.audio) : loadNeuralAudio(note.id));
 
 /** Fast pass over a word list: the word and its sound, one space or tap to move on. */
 export function Sprint(props: { title: string; notes: Note[]; onClose: () => void }) {
@@ -8,28 +11,27 @@ export function Sprint(props: { title: string; notes: Note[]; onClose: () => voi
   const note = props.notes[index];
   const next = () => setIndex((i) => Math.min(i + 1, props.notes.length));
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioName = note?.audio;
-  const upcoming = props.notes[index + 1]?.audio;
+  const upcoming = props.notes[index + 1];
 
   useEffect(() => {
-    if (!audioName) return;
+    if (!note) return;
     let current = true;
     let url = "";
-    void loadWordAudio(audioName).then((blob) => {
+    void loadSound(note).then((blob) => {
       if (!current || !blob) return;
       url = URL.createObjectURL(blob);
       audioRef.current = new Audio(url);
       void audioRef.current.play().catch(() => undefined);
     });
     // Fetching the next sound now keeps fast tapping in step.
-    if (upcoming) void loadWordAudio(upcoming);
+    if (upcoming) void loadSound(upcoming);
     return () => {
       current = false;
       audioRef.current?.pause();
       audioRef.current = null;
       if (url) URL.revokeObjectURL(url);
     };
-  }, [audioName, upcoming]);
+  }, [note, upcoming]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

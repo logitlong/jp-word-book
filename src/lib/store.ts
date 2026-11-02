@@ -13,8 +13,11 @@ export type { Grade, Progress };
 
 export type StudyMode = "read" | "listen" | "recall";
 
-export const LEVELS = ["N1", "N5"] as const;
-export type Level = (typeof LEVELS)[number];
+const ALL_LEVELS = ["N1", "N5", "N1 真题"] as const;
+export type Level = (typeof ALL_LEVELS)[number];
+/** The exam word list is a teacher's handout, so it stays in the private repository and off the public site. */
+export const LEVELS = ALL_LEVELS.filter((level) => PERSONAL || level !== "N1 真题");
+export const LEVEL_TITLE: Record<Level, string> = { N1: "无敌绿宝书 N1", N5: "无敌绿宝书 N5", "N1 真题": "N1 真题" };
 
 export interface Settings {
   level: Level;

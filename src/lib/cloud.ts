@@ -8,6 +8,7 @@ const API = "https://api.github.com/repos/logitlong/jp-word-book-data/contents";
 /** The word list, entries and deck audio are public; everything else needs a token. */
 const PUBLIC_DECK = "https://logitlong.github.io/jlpt-words/deck";
 const NEURAL_DIR = "deck/neural";
+const EXAM_DIR = "deck/exam-words";
 /** Bump when entry files change, so devices fetch them again. */
 const ENTRIES_VERSION = 2;
 const PROGRESS_FILE = "progress.json";
@@ -48,12 +49,23 @@ export async function checkToken(token: string) {
 }
 
 export async function downloadNotes(level: Level) {
+  if (level === "N1 真题") return JSON.parse(await readPrivateText(`${EXAM_DIR}/notes.json`)) as { name: string; notes: Note[] };
   const path = level === "N1" ? "notes.json" : `${level.toLowerCase()}/notes.json`;
   const res = await fetch(`${PUBLIC_DECK}/${path}?v=${DECK_VERSION}`).catch(() => {
     throw new CloudError(0, "词库没有加载到，请检查网络后重试。");
   });
   if (!res.ok) throw new CloudError(res.status, `词库加载失败（${res.status}）`);
   return (await res.json()) as { name: string; notes: Note[] };
+}
+
+async function readPrivateText(path: string) {
+  const token = await loadToken();
+  if (!token) throw new CloudError(401, "N1 真题需要先填写访问令牌");
+  const res = await request(token, path, "application/vnd.github.raw+json").catch(() => {
+    throw new CloudError(0, "词库没有加载到，请检查网络后重试。");
+  });
+  if (!res.ok) throw new CloudError(res.status, describe(res.status));
+  return res.text();
 }
 
 /** Audio is fetched the first time a word plays, then kept on the device. */
@@ -99,6 +111,9 @@ export interface WordEntry {
   word: string;
   senses: Sense[];
   exams: { type: ExamType; stem: string; options: string[] }[];
+  /** Exam word list only: sittings the word appeared in, and whether it was the word tested. */
+  sittings?: string[];
+  tested?: boolean;
 }
 
 type UnitEntries = Record<string, WordEntry>;
@@ -117,8 +132,28 @@ async function fetchUnitEntries(id: string) {
   return entries;
 }
 
+/** The exam word list keeps every sitting's entries in one private file. */
+async function fetchExamEntries() {
+  const key = `${ENTRIES_VERSION}:exam-words`;
+  const cached = await loadEntries<UnitEntries>(key);
+  if (cached) return cached;
+  const list = JSON.parse(await readPrivateText(`${EXAM_DIR}/entries.json`)) as WordEntry[];
+  const entries = Object.fromEntries(list.map((entry) => [entry.id, entry]));
+  await saveEntries(key, entries);
+  return entries;
+}
+
 /** Rewritten entries for a deck unit; units without them yet resolve to nothing. */
 export function loadUnitEntries(unit: string) {
+  if (/^\d{4}\.\d{2}/.test(unit)) {
+    if (!unitEntries.has("exam-words")) {
+      unitEntries.set("exam-words", fetchExamEntries().catch(() => {
+        unitEntries.delete("exam-words");
+        return {};
+      }));
+    }
+    return unitEntries.get("exam-words")!;
+  }
   const [, level, part] = unit.match(/(N\d)-(\w+)$/) ?? [];
   if (!part) return Promise.resolve<UnitEntries>({});
   const id = level === "N1" ? part : `${level}-${part}`.toLowerCase();

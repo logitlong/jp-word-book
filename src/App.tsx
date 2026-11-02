@@ -15,6 +15,7 @@ import {
   loadProgress,
   loadSettings,
   loadSyncSha,
+  LEVEL_TITLE,
   loadToken,
   Rating,
   saveDeck,
@@ -403,7 +404,7 @@ export default function App() {
     <div className="page">
       <header className="top-bar">
         <div>
-          <h1>无敌绿宝书 {settings.level}</h1>
+          <h1>{LEVEL_TITLE[settings.level]}</h1>
           <p>{notes.length.toLocaleString()} 词{token ? ` · ${syncLabel(sync)}` : ""}</p>
         </div>
         <nav className="tabs" aria-label="页面">

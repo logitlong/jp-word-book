@@ -72,6 +72,7 @@ export function WordCard(props: Props) {
   const urlRef = useRef("");
   const playRequest = useRef(0);
   const [entry, setEntry] = useState<WordEntry | undefined>();
+  const examOnly = !note.audio;
 
   useEffect(() => {
     let current = true;
@@ -114,10 +115,11 @@ export function WordCard(props: Props) {
   const play = useCallback(
     () =>
       playFrom(async () => {
-        if (settings.voice === 2 && props.extras) return loadNeuralAudio(note.id);
+        // Exam words outside the deck only have the neural reading.
+        if (examOnly || (settings.voice === 2 && props.extras)) return loadNeuralAudio(note.id);
         return note.audio ? loadWordAudio(note.audio) : undefined;
       }),
-    [note, settings.voice, props.extras, playFrom],
+    [note, examOnly, settings.voice, props.extras, playFrom],
   );
 
   useEffect(() => stop, [note.id, stop]);
@@ -217,6 +219,9 @@ export function WordCard(props: Props) {
             <div className="card-body">
               <div className="card-side">
                 <h1 className="headword">{note.word}</h1>
+                {entry?.sittings && (
+                  <p className="sittings">{entry.tested ? "出题词 · " : ""}{entry.sittings.join("、")}</p>
+                )}
                 {note.accents.map((a) => (
                   <div className="reading-row" key={a}>
                     {isDrawable(note.reading, a) ? (
@@ -245,7 +250,7 @@ export function WordCard(props: Props) {
                   <button className={`listen${playing ? " playing" : ""}`} onClick={() => void play()}>
                     <span className="play-dot">▶</span>听发音<kbd>R</kbd>
                   </button>
-{props.extras && (
+{props.extras && !examOnly && (
                   <div className="voices" role="group" aria-label="声音">
                     <button className={settings.voice === 1 ? "active" : ""} onClick={() => props.onVoice(1)}>
                       牌组语音
@@ -270,19 +275,21 @@ export function WordCard(props: Props) {
                     {entry.senses.map((sense, i) => (
                       <li key={i}>
                         <p className="sense-zh"><span className="pos">{sense.pos}</span>{sense.zh}</p>
-                        <p className="sense-ja">{sense.ja}</p>
+                        {sense.ja && <p className="sense-ja">{sense.ja}</p>}
                         {sense.examples.map((example, j) => (
                           <div className="example" key={j}>
-                            <button
-                              className="example-play"
-                              aria-label="听例句"
-                              onClick={() => void playFrom(() => loadExampleAudio(`${note.id}-${i}-${j}`))}
-                            >
-                              ▶
-                            </button>
+                            {!entry.sittings && (
+                              <button
+                                className="example-play"
+                                aria-label="听例句"
+                                onClick={() => void playFrom(() => loadExampleAudio(`${note.id}-${i}-${j}`))}
+                              >
+                                ▶
+                              </button>
+                            )}
                             <div>
                               <p lang="ja">{example.ja}</p>
-                              <p>{example.zh}</p>
+                              {example.zh && <p>{example.zh}</p>}
                             </div>
                           </div>
                         ))}

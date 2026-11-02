@@ -184,6 +184,7 @@ kbd { font: 12px var(--sans); padding: 2px 6px; border: 1px solid var(--edge); b
 .voices .active { background: var(--paper); color: var(--ink); font-weight: 600; box-shadow: 0 1px 4px #00000022; }
 .audio-note { color: var(--red); font-size: 14px; }
 
+.sittings { margin: 8px 0 0; color: var(--green); font-size: 14px; }
 .pos { margin-top: 24px; color: var(--muted); font-size: 15px; }
 .meaning { margin-top: 10px; font-size: 22px; line-height: 1.75; }
 .prompt { margin-top: 28px; color: var(--muted); font-size: 18px; }
