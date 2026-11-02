@@ -137,7 +137,7 @@ function Importer({ level, needsToken, hasDeck, onDone, onBack }: { level: Level
 
   return (
     <main className="importer">
-      <h1>背单词</h1>
+      <h1>合格線</h1>
       {needsToken && (
         <section className="connect">
           <h2>填写访问令牌</h2>

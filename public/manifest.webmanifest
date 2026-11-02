@@ -1,6 +1,6 @@
 {
-  "name": "背单词",
-  "short_name": "背单词",
+  "name": "合格線",
+  "short_name": "合格線",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

@@ -472,7 +472,7 @@ export function SettingsPanel(props: {
     const url = URL.createObjectURL(new Blob([JSON.stringify(props.progress)], { type: "application/json" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = `背单词进度-${dayKey()}.json`;
+    a.download = `合格線进度-${dayKey()}.json`;
     a.click();
     URL.revokeObjectURL(url);
   };
