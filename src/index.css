@@ -178,7 +178,7 @@ kbd { font: 12px var(--sans); padding: 2px 6px; border: 1px solid var(--edge); b
 .listen-row { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 26px; }
 .listen { display: inline-flex; align-items: center; gap: 16px; min-height: 60px; padding: 0 16px 0 10px; border: 1px solid var(--edge); border-radius: 30px; background: var(--paper); box-shadow: 0 3px 10px #0000000f; font-size: 18px; font-weight: 600; }
 .play-dot { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: var(--green-soft); color: var(--green); font-size: 13px; }
-.listen.playing .play-dot { background: var(--green); color: var(--on-green); }
+.listen.playing .play-dot, .example-play.playing { background: var(--green); color: var(--on-green); }
 .voices { display: inline-flex; padding: 4px; border: 1px solid var(--edge); border-radius: 26px; background: var(--soft); }
 .voices button { min-height: 42px; padding: 0 18px; border-radius: 22px; color: var(--ink-2); font-size: 15px; }
 .voices .active { background: var(--paper); color: var(--ink); font-weight: 600; box-shadow: 0 1px 4px #00000022; }

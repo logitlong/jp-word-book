@@ -81,7 +81,8 @@ interface Props {
 export function WordCard(props: Props) {
   const { note, index, total, progress, settings, study, tag } = props;
   const [revealed, setRevealed] = useState(!study);
-  const [playing, setPlaying] = useState(false);
+  /** Which sound is playing: the word, or an example by its audio name. */
+  const [playing, setPlaying] = useState<string | null>(null);
   const [missing, setMissing] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const urlRef = useRef("");
@@ -101,11 +102,11 @@ export function WordCard(props: Props) {
   const stop = useCallback(() => {
     playRequest.current += 1;
     audioRef.current?.pause();
-    setPlaying(false);
+    setPlaying(null);
   }, []);
 
   const playFrom = useCallback(
-    async (load: () => Promise<Blob | undefined>) => {
+    async (source: string, load: () => Promise<Blob | undefined>) => {
       stop();
       setMissing(false);
       const request = ++playRequest.current;
@@ -119,17 +120,17 @@ export function WordCard(props: Props) {
       URL.revokeObjectURL(urlRef.current);
       urlRef.current = URL.createObjectURL(blob);
       const audio = new Audio(urlRef.current);
-      audio.onended = () => setPlaying(false);
+      audio.onended = () => setPlaying(null);
       audioRef.current = audio;
-      setPlaying(true);
-      await audio.play().catch(() => setPlaying(false));
+      setPlaying(source);
+      await audio.play().catch(() => setPlaying(null));
     },
     [stop],
   );
 
   const play = useCallback(
     () =>
-      playFrom(async () => {
+      playFrom("word", async () => {
         // Exam words outside the deck only have the neural reading.
         if (examOnly || (settings.voice === 2 && props.extras)) return loadNeuralAudio(note.id);
         return note.audio ? loadWordAudio(note.audio) : undefined;
@@ -264,7 +265,7 @@ export function WordCard(props: Props) {
                 )}
 
                 <div className="listen-row">
-                  <button className={`listen${playing ? " playing" : ""}`} onClick={() => void play()}>
+                  <button className={`listen${playing === "word" ? " playing" : ""}`} onClick={() => void play()}>
                     <span className="play-dot">▶</span>听发音<kbd>R</kbd>
                   </button>
 {props.extras && !examOnly && (
@@ -297,9 +298,9 @@ export function WordCard(props: Props) {
                           <div className="example" key={j}>
                             {!entry.sittings && (
                               <button
-                                className="example-play"
+                                className={`example-play${playing === `${note.id}-${i}-${j}` ? " playing" : ""}`}
                                 aria-label="听例句"
-                                onClick={() => void playFrom(() => loadExampleAudio(`${note.id}-${i}-${j}`))}
+                                onClick={() => void playFrom(`${note.id}-${i}-${j}`, () => loadExampleAudio(`${note.id}-${i}-${j}`))}
                               >
                                 ▶
                               </button>
@@ -352,7 +353,7 @@ export function WordCard(props: Props) {
               {settings.mode === "recall" && <p className="meaning">{note.meaning}</p>}
               {settings.mode === "listen" && (
                 <div className="listen-row">
-                  <button className={`listen${playing ? " playing" : ""}`} onClick={() => void play()}>
+                  <button className={`listen${playing === "word" ? " playing" : ""}`} onClick={() => void play()}>
                     <span className="play-dot">▶</span>听发音<kbd>R</kbd>
                   </button>
                 </div>
