@@ -265,7 +265,9 @@ function ItemStep({ cat, unit, it, idx, onAnswer }: { cat: string; unit: Grammar
         <p className="g-meaning">{it.zh}</p>
         <p className="muted ja">{it.ja}</p>
         <p className="g-label">接续</p>
-        <div className="g-formula ja">{it.connect.map(([text, kind], k) => <span key={k} className={`g-blk ${kind}`}>{text}</span>)}</div>
+        {it.connect.map((row, r) => (
+          <div key={r} className="g-formula ja">{row.map(([text, kind], k) => <span key={k} className={`g-blk ${kind}`}>{text}</span>)}</div>
+        ))}
         <p className="g-label">常见搭配</p>
         <div className="g-chips ja">{it.colloc.map((c) => <span key={c} className="g-chip">{c}</span>)}</div>
       </div>

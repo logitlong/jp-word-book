@@ -3,7 +3,7 @@ import { loadEntries, saveEntries } from "./store";
 import type { QuizResult } from "./sync";
 
 /** Bump when the grammar file changes, so devices fetch it again. */
-const GRAMMAR_VERSION = 1;
+const GRAMMAR_VERSION = 2;
 const GRAMMAR_FILE = "deck/grammar/n1.json";
 
 export interface GrammarCategory {
@@ -20,8 +20,8 @@ export interface GrammarItem {
   alt: string;
   zh: string;
   ja: string;
-  /** Formula blocks: text and kind (`verb` for what comes before, `gram` for the grammar itself, `op` for joins). */
-  connect: [string, "verb" | "gram" | "op"][];
+  /** Formula rows, one per way to connect; each block is text and kind (`verb` for what comes before, `gram` for the grammar itself, `op` for joins). */
+  connect: [string, "verb" | "gram" | "op"][][];
   colloc: string[];
   /** `【…】` marks the grammar part of each sentence. */
   examples: { ja: string; zh: string }[];

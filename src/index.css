@@ -471,6 +471,7 @@ select { padding-right: 34px !important; background-image: linear-gradient(45deg
 .panel .g-meaning + .muted { margin-top: 4px; }
 .g-label { margin: 18px 0 8px; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .1em; }
 .g-formula { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 17px; }
+.g-formula + .g-formula { margin-top: 8px; }
 .g-blk { padding: 6px 12px; border-radius: 8px; font-weight: 700; }
 .g-blk.verb { background: var(--soft); color: var(--ink-2); }
 .g-blk.gram { background: color-mix(in srgb, var(--amber) 22%, var(--paper)); color: var(--ink); box-shadow: inset 0 -2px 0 var(--amber); }
