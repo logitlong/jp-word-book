@@ -33,6 +33,7 @@ import {
   type Status,
 } from "./lib/store";
 import { GrammarPage } from "./Grammar";
+import { ReadingPage } from "./Reading";
 import { GroupsPage, SettingsPanel, StatsPage, TodayPage, WordsPage, type WordFilter } from "./pages";
 import { Quiz, type QuizMode } from "./Quiz";
 import { Sprint } from "./Sprint";
@@ -55,14 +56,14 @@ function syncLabel(sync: SyncState) {
   return "云同步已连接";
 }
 
-type Tab = "today" | "groups" | "words" | "grammar" | "stats";
+type Tab = "today" | "groups" | "words" | "grammar" | "reading" | "stats";
 
 const TABS: { value: Tab; label: string }[] = [
   { value: "today", label: "今日" },
   { value: "groups", label: "单元" },
   { value: "words", label: "词表" },
   // The grammar content lives in the private repository, so only the owner's site has the tab.
-  ...(PERSONAL ? [{ value: "grammar" as Tab, label: "文法" }] : []),
+  ...(PERSONAL ? [{ value: "grammar" as Tab, label: "文法" }, { value: "reading" as Tab, label: "读解" }] : []),
   { value: "stats", label: "统计" },
 ];
 
@@ -486,6 +487,12 @@ export default function App() {
       )}
       {tab === "grammar" && (
         <GrammarPage
+          results={progress.quiz}
+          onAnswer={(id, ok) => update((p) => ({ ...p, quiz: { ...p.quiz, [id]: { ok, at: Date.now() } } }))}
+        />
+      )}
+      {tab === "reading" && (
+        <ReadingPage
           results={progress.quiz}
           onAnswer={(id, ok) => update((p) => ({ ...p, quiz: { ...p.quiz, [id]: { ok, at: Date.now() } } }))}
         />
