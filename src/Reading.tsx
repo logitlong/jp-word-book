@@ -3,6 +3,9 @@ import {
   drillId,
   exampleId,
   loadReading,
+  loadTraps,
+  saveTrap,
+  TRAP_ORDER,
   readingId,
   type Passage,
   type PassageType,
@@ -16,37 +19,17 @@ import type { QuizResult } from "./lib/sync";
 type Results = Record<string, QuizResult>;
 type Answer = (id: string, ok: boolean) => void;
 
-const TRAP_KEY = "reading-traps";
-const TRAP_ORDER: Trap[] = ["said", "missing", "reversed", "offtopic", "circular"];
-
-/** The trap behind each wrong pick, kept on this device to show which mistakes repeat. */
-function loadTraps(): Record<string, Trap> {
-  try {
-    return JSON.parse(localStorage.getItem(TRAP_KEY) ?? "{}");
-  } catch {
-    return {};
-  }
-}
-function saveTrap(id: string, trap: Trap | null) {
-  const all = loadTraps();
-  if (trap) all[id] = trap;
-  else delete all[id];
-  try {
-    localStorage.setItem(TRAP_KEY, JSON.stringify(all));
-  } catch {
-    /* Only the statistics miss this answer. */
-  }
-}
-
 type View =
   | { kind: "map" }
   | { kind: "lesson"; i: number }
   | { kind: "practice"; type: PassageType | "wrong"; ids: string[]; i: number };
 
-export function ReadingPage({ results, onAnswer }: { results: Results; onAnswer: Answer }) {
+/** `start` opens the technique lesson, or a question type at its first passage not yet done. */
+export function ReadingPage({ results, onAnswer, start }: { results: Results; onAnswer: Answer; start?: "lesson" | PassageType }) {
   const [book, setBook] = useState<ReadingBook | null>(null);
   const [error, setError] = useState("");
   const [view, setView] = useState<View>({ kind: "map" });
+  const [opened, setOpened] = useState(false);
   const [traps, setTraps] = useState(loadTraps);
 
   const fetchBook = () => loadReading().then(setBook, (e: unknown) => setError(e instanceof Error ? e.message : "读解加载失败"));
@@ -69,6 +52,17 @@ export function ReadingPage({ results, onAnswer }: { results: Results; onAnswer:
   if (!book) return <p className="muted g-loading">正在加载读解…</p>;
   const { lesson, passages } = book;
   const toMap = () => { setView({ kind: "map" }); window.scrollTo(0, 0); };
+  const openType = (type: PassageType) => {
+    const list = passages.filter((p) => p.type === type);
+    const next = list.findIndex((p) => p.questions.some((_, k) => !results[readingId(p.id, k)]));
+    setView({ kind: "practice", type, ids: list.map((p) => p.id), i: Math.max(0, next) });
+  };
+  if (start && !opened) {
+    setOpened(true);
+    if (start === "lesson") setView({ kind: "lesson", i: 0 });
+    else openType(start);
+    return null;
+  }
 
   if (view.kind === "lesson") {
     return <LessonView lesson={lesson} i={view.i} results={results} onAnswer={answer} onStep={(i) => setView({ kind: "lesson", i })} onDone={toMap} />;
@@ -123,7 +117,7 @@ export function ReadingPage({ results, onAnswer }: { results: Results; onAnswer:
           const done = ids.filter((id) => results[id]).length;
           const ok = ids.filter((id) => results[id]?.ok).length;
           return (
-            <button key={t.id} className="panel r-type" onClick={() => setView({ kind: "practice", type: t.id, ids: list.map((p) => p.id), i: 0 })}>
+            <button key={t.id} className="panel r-type" onClick={() => openType(t.id)}>
               <span className="r-no">問題{t.no}</span>
               <b>{t.zh}</b>
               <span className="muted">{t.len} · 考试 {t.count} · 建议 {t.minutes} 分钟/篇</span>

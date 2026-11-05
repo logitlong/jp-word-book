@@ -1,5 +1,6 @@
 import { readPrivateText } from "./cloud";
 import { loadEntries, saveEntries } from "./store";
+import type { QuizResult } from "./sync";
 
 /** Bump when the reading file changes, so devices fetch it again. */
 const READING_VERSION = 1;
@@ -76,3 +77,41 @@ export async function loadReading(): Promise<ReadingBook> {
 export const readingId = (passage: string, i: number) => `r:${passage}:${i}`;
 export const drillId = (i: number) => `r:rel:${i}`;
 export const exampleId = (i: number) => `r:ex:${i}`;
+
+type Results = Record<string, QuizResult>;
+
+const TRAP_KEY = "reading-traps";
+export const TRAP_ORDER: Trap[] = ["said", "missing", "reversed", "offtopic", "circular"];
+
+/** The trap behind each wrong pick, kept on this device to show which mistakes repeat. */
+export function loadTraps(): Record<string, Trap> {
+  try {
+    return JSON.parse(localStorage.getItem(TRAP_KEY) ?? "{}");
+  } catch {
+    return {};
+  }
+}
+export function saveTrap(id: string, trap: Trap | null) {
+  const all = loadTraps();
+  if (trap) all[id] = trap;
+  else delete all[id];
+  try {
+    localStorage.setItem(TRAP_KEY, JSON.stringify(all));
+  } catch {
+    /* Only the statistics miss this answer. */
+  }
+}
+
+/** Practice questions of one type, or of all types. */
+export function readingScore(book: ReadingBook, results: Results, type?: PassageType) {
+  const ids = book.passages.filter((p) => !type || p.type === type).flatMap((p) => p.questions.map((_, k) => readingId(p.id, k)));
+  const done = ids.filter((id) => results[id]).length;
+  const ok = ids.filter((id) => results[id]?.ok).length;
+  return { done, ok, wrong: done - ok, total: ids.length };
+}
+
+/** Relation drills and worked examples of the technique lesson already tried. */
+export function lessonScore(book: ReadingBook, results: Results) {
+  const ids = [...book.lesson.relations.drills.map((_, i) => drillId(i)), ...book.lesson.examples.map((_, i) => exampleId(i))];
+  return { done: ids.filter((id) => results[id]).length, total: ids.length };
+}

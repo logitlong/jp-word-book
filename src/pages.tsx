@@ -2,6 +2,8 @@ import { PERSONAL } from "./lib/edition";
 import { useMemo, useState } from "react";
 import type { Note } from "./lib/apkg";
 import type { QuizMode } from "./Quiz";
+import { grammarScore, savedStep, stepCount, unitProgress, type GrammarBook } from "./lib/grammar";
+import { lessonScore, loadTraps, readingScore, TRAP_ORDER, type PassageType, type ReadingBook } from "./lib/reading";
 import {
   buildQueue,
   dayKey,
@@ -56,78 +58,168 @@ const countOf = (notes: Note[], p: Progress, status: Status) =>
 export const currentGroup = (groups: Group[], p: Progress) =>
   groups.find((g) => g.notes.some((n) => isUnseen(n.id, p)));
 
+/** Quiz results recorded today for one section (`g:` grammar, `r:` reading). */
+const answeredToday = (p: Progress, prefix: string) => {
+  const today = dayKey();
+  return Object.entries(p.quiz).filter(([id, r]) => id.startsWith(prefix) && dayKey(new Date(r.at)) === today).length;
+};
+
+function Meter({ value, label }: { value: number; label: string }) {
+  const percent = Math.round(Math.min(1, Math.max(0, value)) * 100);
+  return (
+    <div className="goal" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label={label}>
+      <i style={{ width: `${percent}%` }} />
+    </div>
+  );
+}
+
 export function TodayPage(props: {
   notes: Note[];
   groups: Group[];
   progress: Progress;
   settings: Settings;
+  grammar: GrammarBook | null;
+  reading: ReadingBook | null;
   onStudy: (title: string, ids: string[]) => void;
-  onMode: (mode: StudyMode) => void;
   onLevel: (level: Level) => void;
+  onGrammar: (cat?: string) => void;
+  onReading: (start?: "lesson" | PassageType) => void;
 }) {
-  const { notes, groups, progress, settings } = props;
+  const { notes, groups, progress, settings, grammar, reading } = props;
   const queue = buildQueue(notes, progress, settings);
   const log = progress.log[dayKey()];
   const learnedToday = learnedOn(notes, progress);
-  const goal = Math.min(100, Math.round((learnedToday / Math.max(1, settings.dailyNew)) * 100));
   const group = currentGroup(groups, progress);
   const ids = [...queue.due, ...queue.fresh].map((n) => n.id);
   const groupLeft = group?.notes.filter((n) => isUnseen(n.id, progress)) ?? [];
   const firstNew = queue.fresh[0];
   const firstGroup = firstNew && groups.find((g) => g.notes.includes(firstNew));
+  const now = new Date();
 
   return (
     <>
-      <section className="today">
+      <section className="today-head">
+        <p className="muted">{now.getMonth() + 1} 月 {now.getDate()} 日 · 连续打卡 {streak(progress)} 天</p>
         <div className="today-stats">
+          <div><b>{(log?.new ?? 0) + (log?.review ?? 0)}</b><span>今日背词</span></div>
           <div><b>{queue.due.length}</b><span>待复习</span></div>
-          <div><b>{queue.fresh.length}</b><span>今日新词</span></div>
-          <div><b>{(log?.new ?? 0) + (log?.review ?? 0)}</b><span>今日已背</span></div>
-          <div><b>{streak(progress)}</b><span>连续打卡（天）</span></div>
+          {PERSONAL ? (
+            <>
+              <div><b>{answeredToday(progress, "g:")}</b><span>今日文法题</span></div>
+              <div><b>{answeredToday(progress, "r:")}</b><span>今日读解题</span></div>
+            </>
+          ) : (
+            <>
+              <div><b>{queue.fresh.length}</b><span>今日新词</span></div>
+              <div><b>{streak(progress)}</b><span>连续打卡（天）</span></div>
+            </>
+          )}
         </div>
-        <div className="goal" role="progressbar" aria-valuenow={goal} aria-valuemin={0} aria-valuemax={100} aria-label="今日新词目标">
-          <i style={{ width: `${goal}%` }} />
-        </div>
-        <p className="goal-text">今日新词 {learnedToday} / {settings.dailyNew}</p>
-        <div className="today-actions">
-          <button className="solid" disabled={!ids.length} onClick={() => props.onStudy("今日学习", ids)}>
-            {ids.length ? `开始学习 ${ids.length} 个` : "今天学完了"}
-          </button>
-          {group && (
-            <button className="ghost" onClick={() => props.onStudy(group.title, groupLeft.map((n) => n.id))}>
-              继续{group.title}（剩 {groupLeft.length} 词）
+      </section>
+
+      <div className={PERSONAL ? "plan" : ""}>
+        <section className="today plan-card">
+          <div className="plan-title">
+            <span className="plan-tag">单词</span>
+            <Segmented label="级别" value={settings.level} options={LEVELS.map((value) => ({ value, label: value }))} onChange={props.onLevel} />
+          </div>
+          <p className="plan-big"><b>{ids.length}</b> 个待学{queue.due.length ? ` · 其中复习 ${queue.due.length}` : ""}</p>
+          <Meter value={learnedToday / Math.max(1, settings.dailyNew)} label="今日新词目标" />
+          <p className="goal-text">今日新词 {learnedToday} / {settings.dailyNew}</p>
+          <div className="today-actions">
+            <button className="solid" disabled={!ids.length} onClick={() => props.onStudy("今日学习", ids)}>
+              {ids.length ? `开始学习 ${ids.length} 个` : "今天学完了"}
             </button>
-          )}
-        </div>
-        <ul className="today-notes">
-          {ids.length > 0 && (
-            <li>
-              开始学习：先复习到期的 {queue.due.length} 词，再{settings.newOrder === "book" ? "按书本顺序" : "随机"}学 {queue.fresh.length} 个新词
-              {firstNew && settings.newOrder === "book" ? `，从${firstGroup?.title ?? ""}的「${firstNew.word}」开始` : ""}。
-            </li>
-          )}
-          {group && <li>继续{group.title}：把这个单元没背过的 {groupLeft.length} 词背完，不受每日新词数限制。</li>}
-        </ul>
-      </section>
+            {group && (
+              <button className="ghost" onClick={() => props.onStudy(group.title, groupLeft.map((n) => n.id))}>
+                继续{group.title}（剩 {groupLeft.length} 词）
+              </button>
+            )}
+          </div>
+          <ul className="today-notes">
+            {ids.length > 0 && (
+              <li>
+                先复习到期的 {queue.due.length} 词，再{settings.newOrder === "book" ? "按书本顺序" : "随机"}学 {queue.fresh.length} 个新词
+                {firstNew && settings.newOrder === "book" ? `，从${firstGroup?.title ?? ""}的「${firstNew.word}」开始` : ""}。
+              </li>
+            )}
+            {group && <li>继续{group.title}：把这个单元没背过的 {groupLeft.length} 词背完，不受每日新词数限制。</li>}
+          </ul>
+        </section>
 
-      <section className="panel">
-        <h2>级别</h2>
-        <Segmented label="级别" value={settings.level} options={LEVELS.map((value) => ({ value, label: value }))} onChange={props.onLevel} />
-        <p className="muted">各级别的词表和每日新词分开，复习进度都会保留。{PERSONAL ? "N1 真题里和绿宝书相同的词共用同一份进度。" : ""}</p>
-      </section>
-
-      <section className="panel">
-        <h2>学习方式</h2>
-        <Segmented label="学习方式" value={settings.mode} options={MODES} onChange={props.onMode} />
-        <p className="muted">{MODES.find((m) => m.value === settings.mode)?.hint}</p>
-      </section>
-
-      <section className="overview">
-        {(["new", "learning", "mastered", "familiar"] as Status[]).map((s) => (
-          <div key={s}><b>{countOf(notes, progress, s).toLocaleString()}</b><span>{STATUS_LABEL[s]}</span></div>
-        ))}
-      </section>
+        {PERSONAL && <GrammarPlan book={grammar} progress={progress} onOpen={props.onGrammar} />}
+        {PERSONAL && <ReadingPlan book={reading} progress={progress} onOpen={props.onReading} />}
+      </div>
     </>
+  );
+}
+
+function GrammarPlan({ book, progress, onOpen }: { book: GrammarBook | null; progress: Progress; onOpen: (cat?: string) => void }) {
+  if (!book) return <section className="today plan-card"><span className="plan-tag">文法</span><p className="muted">正在加载…</p></section>;
+  const ready = book.categories.filter((c) => book.data[c.id]);
+  // The first category not yet mastered, or the last one when all are.
+  const current = ready.find((c) => unitProgress(c.id, book.data[c.id], progress.quiz) < 0.9) ?? ready[ready.length - 1];
+  const unit = current && book.data[current.id];
+  const score = grammarScore(book, progress.quiz);
+  const step = current ? Math.min(savedStep(current.id), stepCount(unit) - 1) : 0;
+  return (
+    <section className="today plan-card">
+      <div className="plan-title"><span className="plan-tag">文法</span><span className="muted">已导入 {ready.length} / {book.categories.length} 类</span></div>
+      {current ? (
+        <>
+          <p className="plan-big"><span className="ja">{current.no}. {current.name}</span>{" "}<small className="muted">{current.zh}</small></p>
+          <Meter value={(step + 1) / stepCount(unit)} label="本类学习进度" />
+          <p className="goal-text">第 {step + 1} / {stepCount(unit)} 步 · 掌握 {Math.round(unitProgress(current.id, unit, progress.quiz) * 100)}%</p>
+          <div className="today-actions">
+            <button className="solid" onClick={() => onOpen(current.id)}>{step > 0 ? "继续学" : "开始学"}{current.name}</button>
+            {score.wrong > 0 && <button className="ghost" onClick={() => onOpen()}>错题 {score.wrong}</button>}
+          </div>
+        </>
+      ) : (
+        <p className="muted">还没有导入文法。</p>
+      )}
+    </section>
+  );
+}
+
+function ReadingPlan({ book, progress, onOpen }: { book: ReadingBook | null; progress: Progress; onOpen: (start?: "lesson" | PassageType) => void }) {
+  if (!book) return <section className="today plan-card"><span className="plan-tag">读解</span><p className="muted">正在加载…</p></section>;
+  const lesson = lessonScore(book, progress.quiz);
+  const score = readingScore(book, progress.quiz);
+  const nextType = book.lesson.types.find((t) => {
+    const s = readingScore(book, progress.quiz, t.id);
+    return s.done < s.total;
+  });
+  const traps = loadTraps();
+  const top = TRAP_ORDER.map((t) => ({ t, n: Object.values(traps).filter((x) => x === t).length })).sort((a, b) => b.n - a.n)[0];
+  const learnFirst = lesson.done < lesson.total;
+  return (
+    <section className="today plan-card">
+      <div className="plan-title"><span className="plan-tag">读解</span><span className="muted">练习 {score.done} / {score.total} 题</span></div>
+      {learnFirst ? (
+        <>
+          <p className="plan-big">先学技巧课</p>
+          <Meter value={lesson.done / lesson.total} label="技巧课进度" />
+          <p className="goal-text">关系判断和例题 {lesson.done} / {lesson.total}</p>
+        </>
+      ) : nextType ? (
+        <>
+          <p className="plan-big"><span className="ja">問題{nextType.no}</span> {nextType.zh}</p>
+          <Meter value={score.done / score.total} label="读解练习进度" />
+          <p className="goal-text">答对 {score.ok} / {score.done}{top?.n ? ` · 最常上当：${book.lesson.traps[top.t].name}（${top.n}）` : ""}</p>
+        </>
+      ) : (
+        <>
+          <p className="plan-big">练习都做过了</p>
+          <p className="goal-text">答对 {score.ok} / {score.total}{score.wrong ? `，还有 ${score.wrong} 题错题可以重做` : ""}</p>
+        </>
+      )}
+      <div className="today-actions">
+        <button className="solid" onClick={() => onOpen(learnFirst ? "lesson" : nextType?.id)}>
+          {learnFirst ? (lesson.done ? "继续技巧课" : "开始技巧课") : nextType ? `练習 問題${nextType.no}` : "去读解"}
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -388,8 +480,8 @@ function Bars(props: { label: string; bars: { key: string; value: number; tip: s
 
 const shortDate = (d: Date) => `${d.getMonth() + 1}/${d.getDate()}`;
 
-export function StatsPage(props: { notes: Note[]; progress: Progress }) {
-  const { notes, progress } = props;
+export function StatsPage(props: { notes: Note[]; progress: Progress; grammar: GrammarBook | null; reading: ReadingBook | null }) {
+  const { notes, progress, grammar, reading } = props;
   const days = recentDays(progress, 30);
   const coming = forecast(notes, progress, 7);
   const totals = Object.values(progress.log).reduce(
@@ -397,15 +489,50 @@ export function StatsPage(props: { notes: Note[]; progress: Progress }) {
     { review: 0, again: 0, new: 0 },
   );
   const retention = totals.review ? Math.round((1 - totals.again / totals.review) * 100) : null;
+  const pct = (ok: number, done: number) => (done ? `${Math.round((ok / done) * 100)}%` : "—");
+
+  // Questions are counted on the day of their latest answer.
+  const questionDays = days.map((d) => {
+    const key = dayKey(d.date);
+    let g = 0, r = 0;
+    for (const [id, res] of Object.entries(progress.quiz)) {
+      if (dayKey(new Date(res.at)) !== key) continue;
+      if (id.startsWith("g:")) g++;
+      else if (id.startsWith("r:")) r++;
+    }
+    return { date: d.date, g, r };
+  });
+  const gScore = grammar && grammarScore(grammar, progress.quiz);
+  const rScore = reading && readingScore(reading, progress.quiz);
+  const traps = loadTraps();
+  const trapCount = TRAP_ORDER.map((t) => ({ t, n: Object.values(traps).filter((x) => x === t).length }));
+  const maxTrap = Math.max(1, ...trapCount.map((x) => x.n));
 
   return (
     <>
       <section className="overview">
         <div><b>{streak(progress)}</b><span>连续打卡（天）</span></div>
         <div><b>{Object.keys(progress.log).length}</b><span>累计学习（天）</span></div>
-        <div><b>{notes.filter((n) => progress.cards[n.id]).length.toLocaleString()}</b><span>已背过的词</span></div>
-        <div><b>{retention === null ? "—" : `${retention}%`}</b><span>复习记住率</span></div>
+        {PERSONAL ? (
+          <>
+            <div><b>{gScore ? pct(gScore.ok, gScore.done) : "—"}</b><span>文法题正确率</span></div>
+            <div><b>{rScore ? pct(rScore.ok, rScore.done) : "—"}</b><span>读解题正确率</span></div>
+          </>
+        ) : (
+          <>
+            <div><b>{notes.filter((n) => progress.cards[n.id]).length.toLocaleString()}</b><span>已背过的词</span></div>
+            <div><b>{retention === null ? "—" : `${retention}%`}</b><span>复习记住率</span></div>
+          </>
+        )}
       </section>
+
+      {PERSONAL && <h2 className="stats-h">单词</h2>}
+      <section className="overview">
+        {(["new", "learning", "mastered", "familiar"] as Status[]).map((s) => (
+          <div key={s}><b>{countOf(notes, progress, s).toLocaleString()}</b><span>{STATUS_LABEL[s]}</span></div>
+        ))}
+      </section>
+      {PERSONAL && <p className="muted stats-note">复习记住率 {retention === null ? "—" : `${retention}%`}</p>}
       <section className="panel">
         <h2>近 30 天背词量</h2>
         <Bars
@@ -430,6 +557,72 @@ export function StatsPage(props: { notes: Note[]; progress: Progress }) {
           }))}
         />
       </section>
+
+      {PERSONAL && (
+        <>
+          <h2 className="stats-h">文法 · 读解</h2>
+          <section className="panel">
+            <h2>近 30 天答题量</h2>
+            <Bars
+              label="近 30 天每天文法和读解答题数"
+              bars={questionDays.map((d, i) => ({
+                key: d.date.toISOString(),
+                value: d.g + d.r,
+                tip: `${shortDate(d.date)}：文法 ${d.g}，读解 ${d.r}`,
+                caption: i % 7 === 2 ? shortDate(d.date) : undefined,
+              }))}
+            />
+            <p className="muted">同一道题只按最近一次作答的日期算。</p>
+          </section>
+          <div className="stats-split">
+            <section className="panel">
+              <h2>文法掌握度</h2>
+              {grammar ? (
+                <>
+                  <p className="muted stats-sub">书上的题做了 {gScore!.done} / {gScore!.total}，答对 {gScore!.ok}</p>
+                  {grammar.categories.map((c) => {
+                    const unit = grammar.data[c.id];
+                    const p = unit ? unitProgress(c.id, unit, progress.quiz) : 0;
+                    return (
+                      <div key={c.id} className={`stat-row${unit ? "" : " off"}`}>
+                        <span className="ja">{c.no}. {c.name}</span>
+                        <span className="g-bar"><i style={{ width: `${p * 100}%` }} /></span>
+                        <span className="muted">{unit ? `${Math.round(p * 100)}%` : "—"}</span>
+                      </div>
+                    );
+                  })}
+                </>
+              ) : <p className="muted">正在加载…</p>}
+            </section>
+            <section className="panel">
+              <h2>读解正确率</h2>
+              {reading ? (
+                <>
+                  <p className="muted stats-sub">练习做了 {rScore!.done} / {rScore!.total}，答对 {rScore!.ok}</p>
+                  {reading.lesson.types.map((t) => {
+                    const s = readingScore(reading, progress.quiz, t.id);
+                    return (
+                      <div key={t.id} className="stat-row">
+                        <span>問題{t.no} {t.zh}</span>
+                        <span className="g-bar"><i style={{ width: `${s.total ? (s.ok / s.total) * 100 : 0}%` }} /></span>
+                        <span className="muted">{s.ok}/{s.total}</span>
+                      </div>
+                    );
+                  })}
+                  <h2 className="stats-inner-h">最容易上当的错误选项</h2>
+                  {trapCount.map(({ t, n }) => (
+                    <div key={t} className="stat-row">
+                      <span><span className={`r-trap ${t}`}>{reading.lesson.traps[t].name}</span></span>
+                      <span className="g-bar"><i className="warn" style={{ width: `${(n / maxTrap) * 100}%` }} /></span>
+                      <span className="muted">{n}</span>
+                    </div>
+                  ))}
+                </>
+              ) : <p className="muted">正在加载…</p>}
+            </section>
+          </div>
+        </>
+      )}
     </>
   );
 }

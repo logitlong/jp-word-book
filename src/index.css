@@ -650,3 +650,43 @@ select { padding-right: 34px !important; background-image: linear-gradient(45deg
   .r-kinds.pick { grid-template-columns: repeat(3, 1fr); }
   .r-head { flex-direction: column; align-items: flex-start; }
 }
+
+/* Today: a plan across words, grammar and reading. */
+.today-head { margin-top: 24px; }
+.today-head > .muted { margin-bottom: 12px; }
+.today-head .today-stats { padding: 20px 24px; border: 1px solid var(--edge); border-radius: 20px; background: var(--paper); }
+.plan { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 16px; margin-top: 16px; align-items: stretch; }
+.plan .plan-card { display: flex; flex-direction: column; margin-top: 0; }
+.plan .today-actions { margin-top: auto; padding-top: 20px; }
+.plan .today-actions .solid, .plan .today-actions .ghost { flex: 1 1 auto; }
+.plan-title { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.plan-title .muted { font-size: 13px; }
+.plan-title .segmented button { min-height: 32px; padding: 0 12px; font-size: 13px; }
+.plan-tag { padding: 3px 12px; border-radius: 12px; background: var(--green-soft); color: var(--green); font-size: 13px; font-weight: 700; }
+.plan-big { margin-top: 18px; font: 600 20px var(--mincho); }
+.plan-big b { font-size: 32px; }
+.plan-big small { font: 400 13px var(--sans); }
+.plan .goal { margin-top: 14px; }
+.sub-tabs { margin-top: 24px; }
+
+/* Stats: words, then grammar and reading. */
+.stats-h { margin: 36px 0 0; font: 600 20px var(--mincho); }
+.stats-note { margin-top: 10px; }
+.stats-split { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.stats-split .panel { margin-top: 16px; }
+.panel .stats-sub { margin: -6px 0 12px; }
+.panel .stats-inner-h { margin: 24px 0 8px; }
+.stat-row { display: grid; grid-template-columns: 9em 1fr 3.2em; align-items: center; gap: 12px; padding: 5px 0; font-size: 14px; }
+.stat-row.off { opacity: .45; }
+.panel .stat-row .muted { margin: 0; text-align: right; font-size: 13px; }
+.g-bar i.warn { background: var(--amber); }
+
+@media (max-width: 900px) {
+  .plan { grid-template-columns: 1fr 1fr; }
+  .plan .plan-card:first-child { grid-column: 1 / -1; }
+}
+@media (max-width: 640px) {
+  .today-head { margin-top: 16px; }
+  .plan, .stats-split { grid-template-columns: 1fr; }
+  .stat-row { grid-template-columns: 7.5em 1fr 3em; }
+}

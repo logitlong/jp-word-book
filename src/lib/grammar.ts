@@ -1,5 +1,6 @@
 import { readPrivateText } from "./cloud";
 import { loadEntries, saveEntries } from "./store";
+import type { QuizResult } from "./sync";
 
 /** Bump when the grammar file changes, so devices fetch it again. */
 const GRAMMAR_VERSION = 1;
@@ -85,3 +86,53 @@ export async function loadGrammar(): Promise<GrammarBook> {
 export const checkId = (cat: string, item: string) => `g:${cat}:c:${item}`;
 export const quizId = (cat: string, i: number) => `g:${cat}:q:${i}`;
 export const sortId = (cat: string, i: number) => `g:${cat}:s:${i}`;
+
+type Results = Record<string, QuizResult>;
+
+const STEP_KEY = "grammar-step:";
+/** Where a category's lesson was left on this device. */
+export const savedStep = (cat: string) => {
+  try {
+    return Number(localStorage.getItem(STEP_KEY + cat)) || 0;
+  } catch {
+    return 0;
+  }
+};
+export const saveStep = (cat: string, i: number) => {
+  try {
+    localStorage.setItem(STEP_KEY + cat, String(i));
+  } catch {
+    /* Only a convenience: the lesson starts from the top instead. */
+  }
+};
+/** Overview, grammar points, comparison, both question sets and the summary. */
+export const stepCount = (unit: GrammarUnit) => unit.items.length + unit.quiz.length + unit.sort.length + 3;
+
+/** Share of right answers among the questions that test this grammar point. */
+export function mastery(cat: string, unit: GrammarUnit, id: string, results: Results) {
+  const ids = [
+    checkId(cat, id),
+    ...unit.quiz.flatMap((q, i) => (q.item === id ? [quizId(cat, i)] : [])),
+    ...unit.sort.flatMap((q, i) => (q.item === id ? [sortId(cat, i)] : [])),
+  ].filter((qid) => results[qid]);
+  return ids.length ? ids.filter((qid) => results[qid].ok).length / ids.length : 0;
+}
+
+export const unitProgress = (cat: string, unit: GrammarUnit, results: Results) =>
+  unit.items.reduce((sum, it) => sum + mastery(cat, unit, it.id, results), 0) / unit.items.length;
+
+/** Book questions (問題5 and 問題6) answered and answered wrong, across all categories. */
+export function grammarScore(book: GrammarBook, results: Results) {
+  let done = 0, ok = 0, wrong = 0, total = 0;
+  for (const [cat, unit] of Object.entries(book.data)) {
+    const ids = [...unit.quiz.map((_, i) => quizId(cat, i)), ...unit.sort.map((_, i) => sortId(cat, i))];
+    total += ids.length;
+    for (const id of ids) {
+      if (!results[id]) continue;
+      done++;
+      if (results[id].ok) ok++;
+      else wrong++;
+    }
+  }
+  return { done, ok, wrong, total };
+}

@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState, type CSSProperties, type ReactNode } from "react";
-import { checkId, loadGrammar, quizId, sortId, type GrammarBook, type GrammarItem, type GrammarUnit } from "./lib/grammar";
+import { checkId, loadGrammar, mastery, quizId, savedStep, saveStep, sortId, unitProgress, type GrammarBook, type GrammarItem, type GrammarUnit } from "./lib/grammar";
 import { shuffled } from "./lib/store";
 import type { QuizResult } from "./lib/sync";
 
@@ -16,22 +16,6 @@ type Step =
   | { type: "wrongdone"; name: string };
 
 type View = { kind: "map" } | { kind: "lesson"; cat: string; steps: Step[]; i: number; title: string; wrong?: boolean };
-
-const STEP_KEY = "grammar-step:";
-const savedStep = (cat: string) => {
-  try {
-    return Number(localStorage.getItem(STEP_KEY + cat)) || 0;
-  } catch {
-    return 0;
-  }
-};
-const saveStep = (cat: string, i: number) => {
-  try {
-    localStorage.setItem(STEP_KEY + cat, String(i));
-  } catch {
-    /* Only a convenience: the lesson starts from the top instead. */
-  }
-};
 
 /** Renders `【…】` as highlighted grammar, or as a blank to fill. */
 function Marked({ text, blank }: { text: string; blank?: boolean }) {
@@ -56,19 +40,6 @@ function buildSteps(cat: string, unit: GrammarUnit): Step[] {
   ];
 }
 
-/** Share of right answers among the questions that test this grammar point. */
-function mastery(cat: string, unit: GrammarUnit, id: string, results: Results) {
-  const ids = [
-    checkId(cat, id),
-    ...unit.quiz.flatMap((q, i) => (q.item === id ? [quizId(cat, i)] : [])),
-    ...unit.sort.flatMap((q, i) => (q.item === id ? [sortId(cat, i)] : [])),
-  ].filter((qid) => results[qid]);
-  return ids.length ? ids.filter((qid) => results[qid].ok).length / ids.length : 0;
-}
-
-const unitProgress = (cat: string, unit: GrammarUnit, results: Results) =>
-  unit.items.reduce((sum, it) => sum + mastery(cat, unit, it.id, results), 0) / unit.items.length;
-
 function wrongSteps(book: GrammarBook, results: Results): Step[] {
   const list: Step[] = [];
   for (const [cat, unit] of Object.entries(book.data)) {
@@ -90,10 +61,12 @@ function useNumberKeys(onKey: (n: number) => void) {
   });
 }
 
-export function GrammarPage({ results, onAnswer }: { results: Results; onAnswer: Answer }) {
+/** `start` opens a category straight away, where its lesson was left. */
+export function GrammarPage({ results, onAnswer, start }: { results: Results; onAnswer: Answer; start?: string }) {
   const [book, setBook] = useState<GrammarBook | null>(null);
   const [error, setError] = useState("");
   const [view, setView] = useState<View>({ kind: "map" });
+  const [opened, setOpened] = useState(false);
 
   const fetchBook = () => loadGrammar().then(setBook, (e: unknown) => setError(e instanceof Error ? e.message : "文法加载失败"));
   const load = () => {
@@ -136,6 +109,11 @@ export function GrammarPage({ results, onAnswer }: { results: Results; onAnswer:
     const title = book.categories.find((c) => c.id === cat)?.name ?? cat;
     setView({ kind: "lesson", cat, steps, i: Math.min(savedStep(cat), steps.length - 1), title });
   };
+  if (start && !opened && book.data[start]) {
+    setOpened(true);
+    openLesson(start);
+    return null;
+  }
   const openWrong = () => {
     const steps = wrongSteps(book, results);
     if (!steps.length) return;

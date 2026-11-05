@@ -33,8 +33,10 @@ import {
   type Status,
 } from "./lib/store";
 import { GrammarPage } from "./Grammar";
+import { loadGrammar, type GrammarBook } from "./lib/grammar";
+import { loadReading, type PassageType, type ReadingBook } from "./lib/reading";
 import { ReadingPage } from "./Reading";
-import { GroupsPage, SettingsPanel, StatsPage, TodayPage, WordsPage, type WordFilter } from "./pages";
+import { GroupsPage, Segmented, SettingsPanel, StatsPage, TodayPage, WordsPage, type WordFilter } from "./pages";
 import { Quiz, type QuizMode } from "./Quiz";
 import { Sprint } from "./Sprint";
 import { FullscreenButton, WordCard } from "./WordCard";
@@ -58,14 +60,16 @@ function syncLabel(sync: SyncState) {
 
 type Tab = "today" | "groups" | "words" | "grammar" | "reading" | "stats";
 
-const TABS: { value: Tab; label: string }[] = [
+/** Units and the word list share one tab, switched at the top of the page. */
+const TABS: { value: Tab; label: string; also?: Tab }[] = [
   { value: "today", label: "今日" },
-  { value: "groups", label: "单元" },
-  { value: "words", label: "词表" },
-  // The grammar content lives in the private repository, so only the owner's site has the tab.
+  { value: "groups", label: "单词", also: "words" },
+  // The grammar content lives in the private repository, so only the owner's site has the tabs.
   ...(PERSONAL ? [{ value: "grammar" as Tab, label: "文法" }, { value: "reading" as Tab, label: "读解" }] : []),
   { value: "stats", label: "统计" },
 ];
+
+const PAGE_TITLE: Partial<Record<Tab, string>> = { today: "合格線", grammar: "N1 文法", reading: "N1 读解", stats: "学习统计" };
 
 interface StudySession {
   title: string;
@@ -191,6 +195,10 @@ export default function App() {
   const [progress, setProgress] = useState<Progress>(emptyProgress);
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [tab, setTab] = useState<Tab>("today");
+  /** Where 今日 sends the grammar or reading page; a new key reopens the page there. */
+  const [jump, setJump] = useState<{ key: number; grammar?: string; reading?: "lesson" | PassageType }>({ key: 0 });
+  const [grammar, setGrammar] = useState<GrammarBook | null>(null);
+  const [reading, setReading] = useState<ReadingBook | null>(null);
   const [open, setOpen] = useState<Open | null>(null);
   const [summary, setSummary] = useState<Summary | null>(null);
   const [quiz, setQuiz] = useState<{ group: Group; mode: QuizMode } | null>(null);
@@ -256,6 +264,12 @@ export default function App() {
     const onVisibility = () => void runSyncRef.current();
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [token]);
+
+  useEffect(() => {
+    if (!PERSONAL || !token) return;
+    loadGrammar().then(setGrammar, () => undefined);
+    loadReading().then(setReading, () => undefined);
   }, [token]);
 
   const update = (fn: (p: Progress) => Progress) => {
@@ -418,15 +432,24 @@ export default function App() {
     <div className="page">
       <header className="top-bar">
         <div>
-          <h1>{LEVEL_TITLE[settings.level]}</h1>
-          <p>{notes.length.toLocaleString()} 词{token ? ` · ${syncLabel(sync)}` : ""}</p>
+          <h1>{PERSONAL ? (PAGE_TITLE[tab] ?? LEVEL_TITLE[settings.level]) : LEVEL_TITLE[settings.level]}</h1>
+          <p>{tab === "groups" || tab === "words" || !PERSONAL ? `${notes.length.toLocaleString()} 词` : LEVEL_TITLE[settings.level]}{token ? ` · ${syncLabel(sync)}` : ""}</p>
         </div>
         <nav className="tabs" aria-label="页面">
-          {TABS.map((t) => (
-            <button key={t.value} className={tab === t.value ? "active" : ""} aria-current={tab === t.value ? "page" : undefined} onClick={() => setTab(t.value)}>
-              {t.label}
-            </button>
-          ))}
+          {TABS.map((t) => {
+            const active = tab === t.value || tab === t.also;
+            return (
+              <button key={t.value} className={active ? "active" : ""} aria-current={active ? "page" : undefined}
+                onClick={() => {
+                  setTab(t.value);
+                  // Tapping the open tab again goes back to its start, as on phones.
+                  setJump((j) => ({ key: tab === t.value ? j.key + 1 : j.key }));
+                }}
+              >
+                {t.label}
+              </button>
+            );
+          })}
         </nav>
         <div className="top-actions">
           <FullscreenButton active={fullscreen} onClick={toggleFullscreen} />
@@ -448,10 +471,29 @@ export default function App() {
           groups={groups}
           progress={progress}
           settings={settings}
+          grammar={grammar}
+          reading={reading}
           onStudy={startStudy}
-          onMode={(mode) => changeSettings({ mode })}
           onLevel={(level) => void changeLevel(level)}
+          onGrammar={(cat) => {
+            setJump({ key: jump.key + 1, grammar: cat });
+            setTab("grammar");
+          }}
+          onReading={(start) => {
+            setJump({ key: jump.key + 1, reading: start });
+            setTab("reading");
+          }}
         />
+      )}
+      {(tab === "groups" || tab === "words") && (
+        <div className="sub-tabs">
+          <Segmented
+            label="单词页面"
+            value={tab}
+            options={[{ value: "groups", label: "单元" }, { value: "words", label: "词表" }]}
+            onChange={setTab}
+          />
+        </div>
       )}
       {tab === "groups" && (
         <GroupsPage
@@ -487,17 +529,21 @@ export default function App() {
       )}
       {tab === "grammar" && (
         <GrammarPage
+          key={jump.key}
+          start={jump.grammar}
           results={progress.quiz}
           onAnswer={(id, ok) => update((p) => ({ ...p, quiz: { ...p.quiz, [id]: { ok, at: Date.now() } } }))}
         />
       )}
       {tab === "reading" && (
         <ReadingPage
+          key={jump.key}
+          start={jump.reading}
           results={progress.quiz}
           onAnswer={(id, ok) => update((p) => ({ ...p, quiz: { ...p.quiz, [id]: { ok, at: Date.now() } } }))}
         />
       )}
-      {tab === "stats" && <StatsPage notes={notes} progress={progress} />}
+      {tab === "stats" && <StatsPage notes={notes} progress={progress} grammar={grammar} reading={reading} />}
 
       {open && openNote && (
         <WordCard
