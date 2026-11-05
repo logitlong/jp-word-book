@@ -668,7 +668,7 @@ select { padding-right: 34px !important; background-image: linear-gradient(45deg
 .plan-big b { font-size: 32px; }
 .plan-big small { font: 400 13px var(--sans); }
 .plan .goal { margin-top: 14px; }
-.sub-tabs { margin-top: 24px; }
+.sub-tabs { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-top: 24px; }
 
 /* Stats: words, then grammar and reading. */
 .stats-h { margin: 36px 0 0; font: 600 20px var(--mincho); }

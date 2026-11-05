@@ -16,6 +16,7 @@ import {
   loadSettings,
   loadSyncSha,
   LEVEL_TITLE,
+  LEVELS,
   loadToken,
   Rating,
   saveDeck,
@@ -493,6 +494,9 @@ export default function App() {
             options={[{ value: "groups", label: "单元" }, { value: "words", label: "词表" }]}
             onChange={setTab}
           />
+          {LEVELS.length > 1 && (
+            <Segmented label="词库" value={settings.level} options={LEVELS.map((value) => ({ value, label: value }))} onChange={(level) => void changeLevel(level)} />
+          )}
         </div>
       )}
       {tab === "groups" && (
