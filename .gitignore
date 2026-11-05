@@ -27,3 +27,6 @@ dist-ssr
 # Decks and local tooling stay out of the repository
 *.apkg
 .claude
+
+# Private content for local development only
+.private

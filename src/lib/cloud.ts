@@ -58,7 +58,7 @@ export async function downloadNotes(level: Level) {
   return (await res.json()) as { name: string; notes: Note[] };
 }
 
-async function readPrivateText(path: string) {
+export async function readPrivateText(path: string) {
   const token = await loadToken();
   if (!token) throw new CloudError(401, "N1 真题需要先填写访问令牌");
   const res = await request(token, path, "application/vnd.github.raw+json").catch(() => {

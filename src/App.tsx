@@ -32,6 +32,7 @@ import {
   type Settings,
   type Status,
 } from "./lib/store";
+import { GrammarPage } from "./Grammar";
 import { GroupsPage, SettingsPanel, StatsPage, TodayPage, WordsPage, type WordFilter } from "./pages";
 import { Quiz, type QuizMode } from "./Quiz";
 import { Sprint } from "./Sprint";
@@ -54,12 +55,14 @@ function syncLabel(sync: SyncState) {
   return "云同步已连接";
 }
 
-type Tab = "today" | "groups" | "words" | "stats";
+type Tab = "today" | "groups" | "words" | "grammar" | "stats";
 
 const TABS: { value: Tab; label: string }[] = [
   { value: "today", label: "今日" },
   { value: "groups", label: "单元" },
   { value: "words", label: "词表" },
+  // The grammar content lives in the private repository, so only the owner's site has the tab.
+  ...(PERSONAL ? [{ value: "grammar" as Tab, label: "文法" }] : []),
   { value: "stats", label: "统计" },
 ];
 
@@ -479,6 +482,12 @@ export default function App() {
           onSprint={(title, list) => setSprint({ title, notes: list })}
           onStar={toggleStar}
           onUnfamiliar={(id) => onStatus(id, progress.cards[id] ? "learning" : "new")}
+        />
+      )}
+      {tab === "grammar" && (
+        <GrammarPage
+          results={progress.quiz}
+          onAnswer={(id, ok) => update((p) => ({ ...p, quiz: { ...p.quiz, [id]: { ok, at: Date.now() } } }))}
         />
       )}
       {tab === "stats" && <StatsPage notes={notes} progress={progress} />}
